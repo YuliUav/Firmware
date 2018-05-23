@@ -39,7 +39,7 @@
  * @author Sander Smeets <sander@droneslab.com>
  * @author Andreas Antener <andreas@uaventure.com>
  */
-
+#define FOLLOWTARGET
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
@@ -101,6 +101,7 @@ MissionBlock::is_mission_item_reached()
 
 		case NAV_CMD_IDLE: /* fall through */
 		case NAV_CMD_LOITER_UNLIMITED:
+        PX4_INFO("false 0");
 			return false;
 
 		case NAV_CMD_DO_LAND_START:
@@ -127,6 +128,7 @@ MissionBlock::is_mission_item_reached()
 				_action_start = 0;
 				return true;
 			} else {
+                PX4_INFO("false 1");
 				return false;
 			}
 
@@ -150,7 +152,6 @@ MissionBlock::is_mission_item_reached()
 			/* do nothing, this is a 3D waypoint */
 			break;
 	}
-
 	hrt_abstime now = hrt_absolute_time();
 
 	if ((_navigator->get_land_detected()->landed == false)
@@ -163,7 +164,7 @@ MissionBlock::is_mission_item_reached()
 		float altitude_amsl = _mission_item.altitude_is_relative
 					? _mission_item.altitude + _navigator->get_home_position()->alt
 					: _mission_item.altitude;
-
+//PX4_INFO("relative:%d",_mission_item.altitude_is_relative);
 		dist = get_distance_to_point_global_wgs84(_mission_item.lat, _mission_item.lon, altitude_amsl,
 					_navigator->get_global_position()->lat,
 					_navigator->get_global_position()->lon,
@@ -277,6 +278,7 @@ MissionBlock::is_mission_item_reached()
 				}
 
 			} else {
+                PX4_INFO("in else");
 				if (dist >= 0.0f && dist <= _navigator->get_acceptance_radius(fabsf(_mission_item.loiter_radius) * 1.2f)
 					&& dist_z <= _navigator->get_altitude_acceptance_radius()) {
 
@@ -297,7 +299,9 @@ MissionBlock::is_mission_item_reached()
 						}
 					}
 				}
+                PX4_INFO("yaw_reached0:%d",_waypoint_yaw_reached);
 			}
+
 		} else {
 			/* for normal mission items used their acceptance radius */
 			float mission_acceptance_radius = _navigator->get_acceptance_radius(_mission_item.acceptance_radius);
@@ -306,7 +310,7 @@ MissionBlock::is_mission_item_reached()
 			if (mission_acceptance_radius < NAV_EPSILON_POSITION) {
 				mission_acceptance_radius = _navigator->get_acceptance_radius();
 			}
-
+PX4_INFO("dist:%.1f, dist_xy:%.1f, dist_z:%.1f, radius:%.1f",(double)dist,(double)dist_xy,(double)dist_z,(double)mission_acceptance_radius);
 			if (dist >= 0.0f && dist <= mission_acceptance_radius
 				&& dist_z <= _navigator->get_altitude_acceptance_radius()) {
 				_waypoint_position_reached = true;
@@ -318,25 +322,24 @@ MissionBlock::is_mission_item_reached()
 			_time_wp_reached = now;
 		}
 	}
-
 	/* Check if the waypoint and the requested yaw setpoint. */
-
-	if (_waypoint_position_reached && !_waypoint_yaw_reached) {
+PX4_INFO("pos_reached:%d,yaw_reached:%d, landed:%d",_waypoint_position_reached,_waypoint_yaw_reached,_navigator->get_land_detected()->landed);
+    if (_waypoint_position_reached && !_waypoint_yaw_reached) {
 
 		if ((_navigator->get_vstatus()->is_rotary_wing
 			|| (_mission_item.nav_cmd == NAV_CMD_LOITER_TO_ALT && _mission_item.force_heading))
 			&& PX4_ISFINITE(_mission_item.yaw)) {
 
 			/* check yaw if defined only for rotary wing except takeoff */
-			float yaw_err = _wrap_pi(_mission_item.yaw - _navigator->get_global_position()->yaw);
-
+            float yaw_err = _wrap_pi(_mission_item.yaw - _navigator->get_global_position()->yaw);
+PX4_INFO("yaw_err:%.1f, param:%.1f, item_yaw:%.1f, pos_yaw:%.1f",(double)yaw_err, (double)math::radians(_param_yaw_err.get()), (double)_mission_item.yaw,(double)_navigator->get_global_position()->yaw);
 			/* accept yaw if reached or if timeout is set in which case we ignore not forced headings */
 			if (fabsf(yaw_err) < math::radians(_param_yaw_err.get())
 				|| (_param_yaw_timeout.get() >= FLT_EPSILON && !_mission_item.force_heading)) {
 
 				_waypoint_yaw_reached = true;
 			}
-
+PX4_INFO("yaw_reached2:%d",_waypoint_yaw_reached);
 			/* if heading needs to be reached, the timeout is enabled and we don't make it, abort mission */
 			if (!_waypoint_yaw_reached && _mission_item.force_heading &&
 				(_param_yaw_timeout.get() >= FLT_EPSILON) &&
@@ -349,7 +352,7 @@ MissionBlock::is_mission_item_reached()
 			_waypoint_yaw_reached = true;
 		}
 	}
-
+//    PX4_INFO("position_reached:%d, yaw_reached:%d",_waypoint_position_reached, _waypoint_yaw_reached);
 	/* Once the waypoint and yaw setpoint have been reached we can start the loiter time countdown */
 	if (_waypoint_position_reached && _waypoint_yaw_reached) {
 
@@ -379,6 +382,7 @@ MissionBlock::is_mission_item_reached()
 	// all acceptance criteria must be met in the same iteration
 	_waypoint_position_reached = false;
 	_waypoint_yaw_reached = false;
+//    PX4_INFO("false 2");
 	return false;
 }
 
@@ -637,13 +641,17 @@ MissionBlock::set_follow_target_item(struct mission_item_s *item, float min_clea
 
 		item->lat = target.lat;
 		item->lon = target.lon;
-		item->altitude = _navigator->get_home_position()->alt;
-
+        //item->altitude = _navigator->get_home_position()->alt;
+        item->altitude = target.alt;
+#ifdef FOLLOWTARGET
+        item->altitude += min_clearance; // set altitude without any constrain       ******jim
+#elif
 		if (min_clearance > 8.0f) {
 			item->altitude += min_clearance;
 		} else {
 			item->altitude += 8.0f; // if min clearance is bad set it to 8.0 meters (well above the average height of a person)
 		}
+#endif
 	}
 
 	item->altitude_is_relative = false;

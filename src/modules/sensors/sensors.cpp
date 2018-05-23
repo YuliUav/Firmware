@@ -2476,7 +2476,7 @@ Sensors::task_main()
 
 	raw.baro_timestamp_relative = sensor_combined_s::RELATIVE_TIMESTAMP_INVALID;
 
-	struct sensor_preflight_s preflt = {};
+    struct sensor_preflight_s preflt = {};
 
 	/*
 	 * do subscriptions

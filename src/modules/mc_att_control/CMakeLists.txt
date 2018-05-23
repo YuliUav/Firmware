@@ -33,7 +33,7 @@
 px4_add_module(
 	MODULE modules__mc_att_control
 	MAIN mc_att_control
-	STACK_MAIN 1200
+        STACK_MAIN 2000
 	STACK_MAX 3500
 	COMPILE_FLAGS
 	SRCS

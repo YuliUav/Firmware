@@ -39,13 +39,35 @@
  */
 
 #pragma once
-
+#define FOLLOWTARGET
+#define AUTOTEST
+#define SET_OFFSET
+#define UI_STRIVE
+#define HOME_POSTION
+#define RTL_flag
 #include <controllib/blocks.hpp>
 #include <controllib/block/BlockParam.hpp>
 #include <lib/mathlib/math/Vector.hpp>
 #include <lib/mathlib/math/Matrix.hpp>
+#include <systemlib/mavlink_log.h>
 #include "navigator_mode.h"
 #include "mission_block.h"
+#ifdef UI_STRIVE
+#include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_formation_status.h>
+#define Instance_MC_1 0             //formation status from mc1
+#define Instance_MC_2 1             //formation status from mc2
+#define Instance_MC_3 2             //formation status from mc3
+#define Instance_MC_4 3             //formation status from mc4
+#define MC_ID 4      //本机的ID号（1、2、3、4）
+#endif
+#ifdef HOME_POSTION
+#include <uORB/topics/home_position.h>
+#endif
+#include <uORB/topics/vision_sensor.h>
+#ifdef RTL_flag
+#include <uORB/topics/follow_to_commander.h>
+#endif
 
 class FollowTarget : public MissionBlock
 {
@@ -121,11 +143,41 @@ private:
 
 	FollowTargetState _follow_target_state;
 	int _follow_target_position;
-
+#ifdef FOLLOWTARGET
 	int _follow_target_sub;
+    int _targ_heli_sub;
+    /* Mavlink log uORB handle */
+    orb_advert_t mavlink_log_pub;
+    orb_advert_t _heli_followtarg_pub;
+    bool firstTime;
+    targ_heli_s targ_heli;
+
+    int vision_senser_sub;
+
+#endif
+    hrt_abstime currentTime;
 	float _step_time_in_ms;
 	float _follow_offset;
+#ifdef AUTOTEST
+    hrt_abstime arrive_time;
+    bool first_arrive;
+    bool vel_d_flag;
+    hrt_abstime second_arrive_time;
+    bool second_arrive;
+    float target_altitude;
+    orb_advert_t follow_targ;
+    orb_advert_t follow_result;
+#endif
 
+#ifdef UI_STRIVE
+    ui_strive_formation_s formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
+    int _formation_sub1;
+    int _formation_sub2;
+    int _formation_sub3;
+    int _formation_sub4;
+    orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
+    ui_strive_formation_status_s formation_status;
+#endif
 	uint64_t _target_updates;
 	uint64_t _last_update_time;
 
@@ -136,9 +188,33 @@ private:
 	math::Vector<3> _target_position_offset;
 	math::Vector<3> _target_position_delta;
 	math::Vector<3> _filtered_target_position_delta;
+#ifdef FOLLOWTARGET
+    math::Vector<3> _heli_yaw;
+#endif
+#ifdef SET_OFFSET
+    float set_hgt_offset;
+    bool last_rtl = false;
+    bool vision_enabled = false;
+    int follow_state = 0;
+    bool midair_refueling = false;
+    hrt_abstime refueling_time = 0;
+    hrt_abstime vision_time = 0;
+    bool vision_time_start = false;
+#endif
 
+#ifdef HOME_POSTION
+    home_position_s home_position_distance;
+    int home_position_sub;
+#endif
+
+#ifdef RTL_flag
+    follow_to_commander_s  rtl_status;
+    orb_advert_t rtl_status_pub_fd;
+#endif
 	follow_target_s _current_target_motion;
-	follow_target_s _previous_target_motion;
+    follow_target_s _previous_target_motion;
+    heli_followtarg_s _heli_follow_result;
+
 	float _yaw_rate;
 	float _responsiveness;
 	float _yaw_auto_max;
@@ -162,4 +238,7 @@ private:
 	void update_position_sp(bool velocity_valid, bool position_valid, float yaw_rate);
 	void update_target_motion();
 	void update_target_velocity();
+#ifdef SET_OFFSET
+    void set_offset(float x,float y);
+#endif
 };

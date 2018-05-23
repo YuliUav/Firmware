@@ -228,6 +228,9 @@ private:
 	int		_gps_pos_sub;		/**< gps position subscription */
 	int		_sensor_combined_sub;		/**< sensor combined subscription */
 	int		_home_pos_sub;			/**< home position subscription */
+
+        int             _heli_pos_sub;
+
 	int		_vstatus_sub;			/**< vehicle status subscription */
 	int		_land_detected_sub;		/**< vehicle land detected subscription */
 	int		_fw_pos_ctrl_status_sub;		/**< notification of vehicle capabilities updates */
@@ -251,7 +254,10 @@ private:
 	vehicle_gps_position_s				_gps_pos;		/**< gps position */
 	sensor_combined_s				_sensor_combined;	/**< sensor values */
 	home_position_s					_home_pos;		/**< home position for RTL */
-	mission_item_s 					_mission_item;		/**< current mission item */
+
+        targ_heli_s                                     _heli_pos;
+
+        mission_item_s 					_mission_item;		/**< current mission item */
 	fw_pos_ctrl_status_s			_fw_pos_ctrl_status;		/**< fixed wing navigation capabilities */
 	position_setpoint_triplet_s			_pos_sp_triplet;	/**< triplet of position setpoints */
 	position_setpoint_triplet_s			_reposition_triplet;	/**< triplet for non-mission direct position command */
@@ -281,7 +287,7 @@ private:
 	Loiter		_loiter;			/**< class that handles loiter */
 	Takeoff		_takeoff;			/**< class for handling takeoff commands */
 	Land		_land;			/**< class for handling land commands */
-	RTL 		_rtl;				/**< class that handles RTL */
+        RTL 		_rtl;				/**< class that handles RTL */
 	RCLoss 		_rcLoss;				/**< class that handles RTL according to
 							  OBC rules (rc loss mode) */
 	DataLinkLoss	_dataLinkLoss;			/**< class that handles the OBC datalink loss mode */
@@ -327,6 +333,8 @@ private:
 	 */
 	void		home_position_update(bool force=false);
 
+
+        void            heli_pos_update();
 	/**
 	 * Retrieve fixed wing navigation capabilities
 	 */

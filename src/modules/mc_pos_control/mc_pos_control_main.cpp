@@ -91,7 +91,7 @@
 #define MIN_DIST		0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
 #define ONE_G	9.8066f
-
+#define test
 /**
  * Multicopter position control app start / stop handling function
  *
@@ -259,6 +259,16 @@ private:
 	math::Vector<3> _vel_ff;
 	math::Vector<3> _vel_sp_prev;
 	math::Vector<3> _vel_err_d;		/**< derivative of current velocity */
+
+
+#ifdef test
+    math::Vector<3> _pos1;
+    math::Vector<3> _pos2;
+    bool first_set_sp;
+    bool second_set_sp;
+#endif
+
+
 
 	math::Matrix<3, 3> _R;			/**< rotation matrix from attitude quaternions */
 	float _yaw;				/**< yaw angle (euler) */
@@ -446,6 +456,13 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_vel_ff.zero();
 	_vel_sp_prev.zero();
 	_vel_err_d.zero();
+
+#ifdef test
+    _pos1.zero();
+    _pos2.zero();
+    first_set_sp = true;
+    second_set_sp = false;
+#endif
 
 	_R.identity();
 
@@ -979,6 +996,38 @@ MulticopterPositionControl::control_manual(float dt)
 			_vel_sp(2) = req_vel_sp_scaled(2);
 		}
 	}
+#ifdef test
+    if(_manual.aux2 > 0.5f)
+    {
+
+        float distance1 = sqrtf((_pos1(0)-_local_pos.x)*(_pos1(0)-_local_pos.x) + (_pos1(1)-_local_pos.y)*(_pos1(1)-_local_pos.y) + (_pos1(2)-_local_pos.z)*(_pos1(2)-_local_pos.z));
+        float distance2 = sqrtf((_pos2(0)-_local_pos.x)*(_pos2(0)-_local_pos.x) + (_pos2(1)-_local_pos.y)*(_pos2(1)-_local_pos.y) + (_pos2(2)-_local_pos.z)*(_pos2(2)-_local_pos.z));
+        if(first_set_sp == true)
+        {
+            _pos_sp = _pos1;
+            if(distance1 < 2.0f)
+            {
+                first_set_sp = false;
+                second_set_sp = true;
+            }
+        }
+
+        if(second_set_sp == true)
+        {
+            _pos_sp = _pos2;
+            if(distance2 < 2.0f)
+            {
+                first_set_sp = true;
+                second_set_sp = false;
+            }
+        }
+
+    }
+    else
+    {
+        first_set_sp = true;
+    }
+#endif
 }
 
 void
@@ -1338,6 +1387,10 @@ MulticopterPositionControl::task_main()
 	bool reset_yaw_sp = true;
 	bool was_armed = false;
 
+#ifdef test
+    _pos1 = {5.0f,-10.0f,-5.0f};
+    _pos2 = {5.0f,10.0f,-5.0f};
+#endif
 	hrt_abstime t_prev = 0;
 
 	math::Vector<3> thrust_int;

@@ -51,6 +51,7 @@ NavigatorMode::NavigatorMode(Navigator *navigator, const char *name) :
 	updateParams();
 	/* set initial mission items */
 	on_inactive();
+        PX4_INFO("NavigatorMode::NavigatorMode::_first_run: %d",_first_run);
 }
 
 NavigatorMode::~NavigatorMode()
@@ -61,24 +62,28 @@ void
 NavigatorMode::run(bool active)
 {
 	if (active) {
-		if (_first_run) {
+        PX4_INFO("_first_run:%d",_first_run);
+        if (_first_run) {
 			/* first run */
-			_first_run = false;
+            _first_run = false;
 			/* Reset stay in failsafe flag */
 			_navigator->get_mission_result()->stay_in_failsafe = false;
 			_navigator->set_mission_result_updated();
 			on_activation();
 
 		} else {
-			/* periodic updates when active */
+            /* periodic updates when active */
 			on_active();
 		}
 
 	} else {
 		/* periodic updates when inactive */
+
 		_first_run = true;
 		on_inactive();
+
 	}
+
 }
 
 void

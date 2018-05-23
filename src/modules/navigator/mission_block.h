@@ -51,7 +51,8 @@
 #include <uORB/topics/vtol_vehicle_status.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/follow_target.h>
-
+#include <uORB/topics/targ_heli.h>
+#include <uORB/topics/heli_followtarg.h>
 #include "navigator_mode.h"
 
 class Navigator;

@@ -600,7 +600,7 @@ void GPS::initializeCommunicationDump()
 		return; //dumping disabled
 	}
 
-	_dump_from_device = new gps_dump_s();
+    _dump_from_device = new gps_dump_s();
 	_dump_to_device = new gps_dump_s();
 
 	if (!_dump_from_device || !_dump_to_device) {
@@ -930,6 +930,10 @@ GPS::print_info()
 void
 GPS::publish()
 {
+    // PX4_INFO("_report_gps_pos.hdop:%.1f,vel_n_m_s:%.3f,vel_e_m_s:%.3f,vel_d_m_s:%.3f,lon: %.7f",(double)_report_gps_pos.hdop,(double)_report_gps_pos.vel_n_m_s,(double)_report_gps_pos.vel_e_m_s,(double)_report_gps_pos.vel_d_m_s,(double)(_report_gps_pos.lon/10000000.0));
+    PX4_INFO("_report_gps_pos.timestamp: %llu",_report_gps_pos.timestamp);
+    //_report_gps_pos.hdop = 11;
+   // _report_gps_pos.satellites_used = 22;
 	if (_gps_num == 1) {
 		orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance,
 				 ORB_PRIO_DEFAULT);

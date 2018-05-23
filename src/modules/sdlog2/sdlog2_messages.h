@@ -655,8 +655,21 @@ struct log_PARM_s {
 	char name[16];
 	float value;
 };
-#pragma pack(pop)
+//#pragma pack(pop)
 
+/* --- PARM - TARGHELI --- */
+#define LOG_TARG_MSG 132
+struct log_TARG_s {
+    uint64_t timestamp; // required for logger
+    int32_t lat;
+    int32_t lon;
+    float alt;
+    float vel_n;
+    float vel_e;
+    float vel_d;
+    float yaw;
+};
+#pragma pack(pop)
 // the lower type of initialisation is not supported in C++
 #ifndef __cplusplus
 
@@ -724,11 +737,13 @@ static const struct log_format_s log_formats[] = {
 	LOG_FORMAT(LAND, "B", "Landed"),
 	LOG_FORMAT(LOAD, "f", "CPU"),
 	LOG_FORMAT(DPRS, "Qffff", "errors,DPRESraw,DPRES,DPRESmax,Temp"),
+	LOG_FORMAT(TARG, "QLLfffff", "timestamp,Lat,Lon,Alt,VelN,VelE,VelD,yaw"),
 	/* system-level messages, ID >= 0x80 */
 	/* FMT: don't write format of format message, it's useless */
 	LOG_FORMAT(TIME, "Q", "StartTime"),
 	LOG_FORMAT(VER, "NZ", "Arch,FwGit"),
 	LOG_FORMAT(PARM, "Nf", "Name,Value")
+    
 };
 
 static const unsigned log_formats_num = sizeof(log_formats) / sizeof(log_formats[0]);

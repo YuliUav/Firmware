@@ -42,7 +42,7 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  * @author Thomas Gubler <thomasgubler@gmail.com>
  */
-
+#define FOLLOWTARGET
 #include <px4_config.h>
 #include <px4_defines.h>
 #include <px4_tasks.h>
@@ -107,6 +107,9 @@ Navigator::Navigator() :
 	_gps_pos_sub(-1),
 	_sensor_combined_sub(-1),
 	_home_pos_sub(-1),
+
+//    _heli_pos_sub(-1),
+
 	_vstatus_sub(-1),
 	_land_detected_sub(-1),
 	_fw_pos_ctrl_status_sub(-1),
@@ -177,7 +180,6 @@ Navigator::Navigator() :
 	_navigation_mode_array[7] = &_takeoff;
 	_navigation_mode_array[8] = &_land;
 	_navigation_mode_array[9] = &_follow_target;
-
 	updateParams();
 }
 
@@ -230,10 +232,21 @@ Navigator::home_position_update(bool force)
 	bool updated = false;
 	orb_check(_home_pos_sub, &updated);
 
-	if (updated || force) {
+    if (updated || force) {
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
 	}
 }
+
+//void
+//Navigator::heli_pos_update()
+//{
+//    bool updated = false;
+//    orb_check(_heli_pos_sub, &updated);
+
+//    if (updated) {
+//         orb_copy(ORB_ID(targ_heli), _heli_pos_sub, &_heli_pos);
+//    }
+//}
 
 void
 Navigator::fw_pos_ctrl_status_update()
@@ -277,13 +290,15 @@ void
 Navigator::task_main_trampoline(int argc, char *argv[])
 {
 	navigator::g_navigator->task_main();
+    PX4_INFO("g_navigator->task_main()");
 }
 
 void
 Navigator::task_main()
 {
 	bool have_geofence_position_data = false;
-
+    /* Mavlink log uORB handle */
+   // orb_advert_t mavlink_log_pub = nullptr;
 	/* Try to load the geofence:
 	 * if /fs/microsd/etc/geofence.txt load from this file
 	 * else clear geofence data in datamanager */
@@ -308,6 +323,7 @@ Navigator::task_main()
 	_land_detected_sub = orb_subscribe(ORB_ID(vehicle_land_detected));
 	_control_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
 	_home_pos_sub = orb_subscribe(ORB_ID(home_position));
+   // _heli_pos_sub = orb_subscribe(ORB_ID(home_position));
 	_onboard_mission_sub = orb_subscribe(ORB_ID(onboard_mission));
 	_offboard_mission_sub = orb_subscribe(ORB_ID(offboard_mission));
 	_param_update_sub = orb_subscribe(ORB_ID(parameter_update));
@@ -325,18 +341,44 @@ Navigator::task_main()
 	params_update();
 
 	/* wakeup source(s) */
-	px4_pollfd_struct_t fds[1] = {};
+    px4_pollfd_struct_t fds[1] = {};/*,fdss[1] = {};*/
 
 	/* Setup of loop */
 	fds[0].fd = _global_pos_sub;
 	fds[0].events = POLLIN;
 
+//    fdss[0].fd = _heli_pos_sub;
+//    fdss[0].events = POLLIN;
+
 	bool global_pos_available_once = false;
 
 	while (!_task_should_exit) {
+//        if(_navigation_mode == &_follow_target)
+//        {
+//            int prett = px4_poll(&fdss[0], (sizeof(fdss) / sizeof(fdss[0])), 1000);
+//            //        PX4_WARN("_task_should_exit");
+//            /* iterate through navigation modes and set active/inactive for each */
 
+//            if (prett == 0) {
+//                /* timed out - periodic check for _task_should_exit, etc. */
+
+//                PX4_WARN("global position timeout");
+//            }
+//            /* Let the loop run anyway, don't do `continue` here. */
+
+
+//            else if (prett < 0)
+//            {
+//                /* this is undesirable but not much we can do - might want to flag unhappy status */
+//                // PX4_ERR("nav: poll error %d, %d", pret, errno);
+//                usleep(10000);
+//                continue;
+//            }
+//        }
 		/* wait for up to 200ms for data */
 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
+//        PX4_WARN("_task_should_exit");
+        /* iterate through navigation modes and set active/inactive for each */
 
 		if (pret == 0) {
 			/* timed out - periodic check for _task_should_exit, etc. */
@@ -419,7 +461,13 @@ Navigator::task_main()
 			home_position_update();
 		}
 
-		orb_check(_vehicle_command_sub, &updated);
+
+//   //     orb_check(_heli_pos_sub, &updated);
+//        if(updated)
+//        {
+//            heli_pos_update();
+//        }
+//		orb_check(_vehicle_command_sub, &updated);
 		if (updated) {
 			vehicle_command_s cmd;
 			orb_copy(ORB_ID(vehicle_command), _vehicle_command_sub, &cmd);
@@ -632,10 +680,30 @@ Navigator::task_main()
 		}
 
 		/* iterate through navigation modes and set active/inactive for each */
+#ifdef FOLLOWTARGET0
+        /* run follow target mode, only for test!*/
+        _navigation_mode_array[9]->run(true);
+#else
 		for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
-			_navigation_mode_array[i]->run(_navigation_mode == _navigation_mode_array[i]);
-		}
+            _navigation_mode_array[i]->run(_navigation_mode == _navigation_mode_array[i]);
+            if(_navigation_mode == _navigation_mode_array[i])
+            {
+                if(i == 7)
+                {
+                      mavlink_log_info(&_mavlink_log_pub,"takeoff");
+                    PX4_INFO("takeoff");
+                }
+                if(i == 2)
+                {
+                    mavlink_log_info(&_mavlink_log_pub,"rtl");
+                    PX4_INFO("rtl");
+                }
 
+
+            }
+
+		}
+#endif
 		/* if nothing is running, set position setpoint triplet invalid once */
 		if (_navigation_mode == nullptr && !_pos_sp_triplet_published_invalid_once) {
 			_pos_sp_triplet_published_invalid_once = true;
@@ -648,6 +716,7 @@ Navigator::task_main()
 		if (_pos_sp_triplet_updated) {
 			_pos_sp_triplet.timestamp = hrt_absolute_time();
 			publish_position_setpoint_triplet();
+        //    PX4_INFO("POS SP PUBLISHED");
 			_pos_sp_triplet_updated = false;
 		}
 
@@ -673,7 +742,7 @@ Navigator::start()
 	_navigator_task = px4_task_spawn_cmd("navigator",
 					 SCHED_DEFAULT,
 					 SCHED_PRIORITY_DEFAULT + 5,
-					 1500,
+                     3500,
 					 (px4_main_t)&Navigator::task_main_trampoline,
 					 nullptr);
 

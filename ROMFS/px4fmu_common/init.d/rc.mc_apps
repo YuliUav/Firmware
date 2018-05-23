@@ -41,6 +41,12 @@ mc_att_control start
 mc_pos_control start
 
 #
+# Start heli_msg_app to read position and velocity message form helicopter target
+#
+ #heli_msg_app start
+ vision_sensor start
+
+#
 # Start Land Detector
 #
 land_detector start multicopter

@@ -81,6 +81,7 @@
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_status.h>
+#include <systemlib/mavlink_log.h>
 
 #include <ecl/EKF/ekf.h>
 
@@ -585,7 +586,7 @@ void Ekf2::task_main()
 
 				if (balt_time_ms - _balt_time_ms_last_used > (uint32_t)_params->sensor_interval_min_ms) {
 					float balt_data_avg = _balt_data_sum / (float)_balt_sample_count;
-					_ekf.setBaroData(1000 * (uint64_t)balt_time_ms, &balt_data_avg);
+                    _ekf.setBaroData(1000 * (uint64_t)balt_time_ms, &balt_data_avg);
 					_balt_time_ms_last_used = balt_time_ms;
 					_balt_time_sum_ms = 0;
 					_balt_sample_count = 0;
@@ -811,18 +812,30 @@ void Ekf2::task_main()
 			struct vehicle_local_position_s lpos = {};
 			float pos[3] = {};
 
-			lpos.timestamp = hrt_absolute_time();
+
+            lpos.timestamp = hrt_absolute_time();
+
+            // Position of local NED origin in GPS / WGS84 frame
+            struct map_projection_reference_s ekf_origin = {};
+            // true if position (x, y) is valid and has valid global reference (ref_lat, ref_lon)
+            _ekf.get_ekf_origin(&lpos.ref_timestamp, &ekf_origin, &lpos.ref_alt);
+
 
 			// Position of body origin in local NED frame
 			_ekf.get_position(pos);
 			lpos.x = (_ekf.local_position_is_valid()) ? pos[0] : 0.0f;
 			lpos.y = (_ekf.local_position_is_valid()) ? pos[1] : 0.0f;
-			lpos.z = pos[2];
+            //lpos.z = pos[2];//yuli
+         //   orb_advert_t mavlink_log_pub =  nullptr;
+            lpos.z = -gps.alt / 1000.0f + lpos.ref_alt;
+           // mavlink_log_info(&mavlink_log_pub,"  lpos.z:%.3f,lpos.ref_alt:%.3f",(double)lpos.z ,(double)lpos.ref_alt);//yuli20180411
+
 
 			// Velocity of body origin in local NED frame (m/s)
 			lpos.vx = velocity[0];
 			lpos.vy = velocity[1];
 			lpos.vz = velocity[2];
+        //    lpos.vz = gps.vel_d_m_s;//yuli
 
 			// TODO: better status reporting
 			lpos.xy_valid = _ekf.local_position_is_valid();
@@ -830,10 +843,7 @@ void Ekf2::task_main()
 			lpos.v_xy_valid = _ekf.local_position_is_valid();
 			lpos.v_z_valid = true;
 
-			// Position of local NED origin in GPS / WGS84 frame
-			struct map_projection_reference_s ekf_origin = {};
-			// true if position (x, y) is valid and has valid global reference (ref_lat, ref_lon)
-			_ekf.get_ekf_origin(&lpos.ref_timestamp, &ekf_origin, &lpos.ref_alt);
+
 			lpos.xy_global = _ekf.global_position_is_valid();
 			lpos.z_global = true;                                // true if z is valid and has valid global reference (ref_alt)
 			lpos.ref_lat = ekf_origin.lat_rad * 180.0 / M_PI; // Reference point latitude in degrees
@@ -881,13 +891,22 @@ void Ekf2::task_main()
 				map_projection_reproject(&ekf_origin, lpos.x, lpos.y, &est_lat, &est_lon);
 				global_pos.lat = est_lat; // Latitude in degrees
 				global_pos.lon = est_lon; // Longitude in degrees
+
+                //
+             //   global_pos.lat = gps.lat / 10000000.0;  // yuli
+             //   global_pos.lon = gps.lon / 10000000.0;
+                //
+
 				map_projection_reproject(&ekf_origin, lpos.x - lpos.delta_xy[0], lpos.y - lpos.delta_xy[1], &lat_pre_reset,
 							 &lon_pre_reset);
 				global_pos.delta_lat_lon[0] = est_lat - lat_pre_reset;
 				global_pos.delta_lat_lon[1] = est_lon - lon_pre_reset;
 				global_pos.lat_lon_reset_counter = lpos.xy_reset_counter;
 
-				global_pos.alt = -pos[2] + lpos.ref_alt; // Altitude AMSL in meters
+//                global_pos.alt = -pos[2] + lpos.ref_alt; // Altitude AMSL in meters
+              //
+                global_pos.alt = gps.alt / 1000.0f;   //yuli
+                //
 				_ekf.get_posD_reset(&global_pos.delta_alt, &global_pos.alt_reset_counter);
 				// global altitude has opposite sign of local down position
 				global_pos.delta_alt *= -1.0f;
@@ -895,6 +914,12 @@ void Ekf2::task_main()
 				global_pos.vel_n = velocity[0]; // Ground north velocity, m/s
 				global_pos.vel_e = velocity[1]; // Ground east velocity, m/s
 				global_pos.vel_d = velocity[2]; // Ground downside velocity, m/s
+
+                //
+               // global_pos.vel_n = gps.vel_n_m_s;//yuli
+               // global_pos.vel_e = gps.vel_e_m_s;
+                //global_pos.vel_d = gps.vel_d_m_s;
+                //
 
 				global_pos.yaw = euler(2); // Yaw in radians -PI..+PI.
 
@@ -963,7 +988,7 @@ void Ekf2::task_main()
 
 		// Publish wind estimate
 		struct wind_estimate_s wind_estimate = {};
-		wind_estimate.timestamp = hrt_absolute_time();
+        wind_estimate.timestamp = hrt_absolute_time();
 		wind_estimate.windspeed_north = status.states[22];
 		wind_estimate.windspeed_east = status.states[23];
 		wind_estimate.covariance_north = status.covariances[22];

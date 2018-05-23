@@ -44,8 +44,16 @@
  * @author Sander Smeets	<sander@droneslab.com>
  */
 
+#define  CHANGE_STATE //yuli
+//#define UI_STRIVE
 #include <cmath>	// NAN
 
+#ifdef  CHANGE_STATE
+#include <drivers/drv_hrt.h>
+//#define MC_ID 4      //本机的ID号（1、2、3、4）
+#endif
+
+#define RECEIVE_STATUS
 /* commander module headers */
 #include "accelerometer_calibration.h"
 #include "airspeed_calibration.h"
@@ -117,6 +125,19 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vtol_vehicle_status.h>
+
+#ifdef UI_STRIVE
+#include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_formation_status.h>
+#define Instance_MC_1 0             //formation status from mc1
+#define Instance_MC_2 1             //formation status from mc2
+#define Instance_MC_3 2             //formation status from mc3
+#define Instance_MC_4 3             //formation status from mc4
+#endif
+#ifdef RECEIVE_STATUS
+#include <uORB/topics/follow_to_commander.h>
+#endif
+
 
 typedef enum VEHICLE_MODE_FLAG
 {
@@ -225,7 +246,31 @@ static float avionics_power_rail_voltage;		// voltage of the avionics power rail
 
 static bool can_arm_without_gps = false;
 
+#ifdef CHANGE_STATE
+hrt_abstime task_planning_time = 0;
+hrt_abstime task_start_time = 0;
+hrt_abstime takeoff_time = 10e6;
+hrt_abstime followtarget_time = 10e6;
+hrt_abstime catch_time = 15e6;
+hrt_abstime docked_time = 20e6;
+hrt_abstime pos_ctl_time = 25e6;
+hrt_abstime return_time = 30e6;
+bool plan_time_flag = false;
+#endif
 
+#ifdef UI_STRIVE
+    ui_strive_formation_s formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
+    int _formation_sub1;
+    int _formation_sub2;
+    int _formation_sub3;
+    int _formation_sub4;
+    orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
+    ui_strive_formation_status_s formation_status;
+#endif
+#ifdef RECEIVE_STATUS
+follow_to_commander_s return_flag = {};
+int return_flag_sub = -1;
+#endif
 /**
  * The daemon app only briefly exists to start
  * the background job. The stack size assigned in the
@@ -275,6 +320,57 @@ void print_reject_mode(struct vehicle_status_s *current_status, const char *msg)
 void print_reject_arm(const char *msg);
 
 void print_status();
+
+#ifdef CHANGE_STATE
+void change_state(uint8_t _state);
+void change_state(uint8_t _state)
+{
+   internal_state.main_state =  _state;
+
+}
+void task_plan();
+void task_plan()
+{
+    if(task_planning_time > return_time || return_flag.status == 5)
+    {
+         change_state(5/*MAIN_STATE_AUTO_RTL*/);
+         PX4_INFO("MAIN_STATE_AUTO_RTL");
+    }
+
+    ///
+//    else if(task_planning_time > pos_ctl_time)
+//    {
+//        change_state(2/*MAIN_STATE_POSCTL*/);
+//        PX4_INFO("MAIN_STATE_POSCTL");
+//    }
+//    ///
+//    else if(task_planning_time > docked_time)
+//    {
+//        change_state(2/*MAIN_STATE_POSCTL*/);
+//        PX4_INFO("MAIN_STATE_POSCTL");
+//    }
+    ///
+
+//    else if(task_planning_time > catch_time)
+//    {
+//        change_state(12/*MAIN_STATE_AUTO_FOLLOW_TARGET*/);
+//        PX4_INFO("MAIN_STATE_AUTO_FOLLOW_TARGET");
+
+//    }
+   ///
+    else if(task_planning_time > followtarget_time)
+    {
+        change_state(12/*MAIN_STATE_AUTO_FOLLOW_TARGET*/);
+        PX4_INFO("MAIN_STATE_AUTO_FOLLOW_TARGET");
+    }
+    ///
+    else if(task_planning_time > takeoff_time)
+    {
+        change_state(10/*MAIN_STATE_AUTO_TAKEOFF*/);
+        PX4_INFO("MAIN_STATE_AUTO_TAKEOFF");
+    }
+}
+#endif
 
 transition_result_t arm_disarm(bool arm, orb_advert_t *mavlink_log_pub, const char *armedBy);
 
@@ -1230,7 +1326,7 @@ static void commander_set_home_position(orb_advert_t &homePub, home_position_s &
 	matrix::Eulerf euler = matrix::Quatf(attitude.q);
 	home.yaw = euler.psi();
 
-	PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
+    //PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
 
 	/* announce new home position */
 	if (homePub != nullptr) {
@@ -1720,10 +1816,87 @@ int commander_thread_main(int argc, char *argv[])
 	pthread_create(&commander_low_prio_thread, &commander_low_prio_attr, commander_low_prio_loop, NULL);
 	pthread_attr_destroy(&commander_low_prio_attr);
 
+#ifdef UI_STRIVE
+    _formation_sub1 = -1;
+    _formation_sub2 = -1;
+    _formation_sub3 = -1;
+    _formation_sub4 = -1;
+    _formation_status_pub = nullptr;
+#endif
+#ifdef UI_STRIVE
+    memset(&formation1, 0, sizeof(formation1));
+    memset(&formation2, 0, sizeof(formation2));
+    memset(&formation3, 0, sizeof(formation3));
+    memset(&formation4, 0, sizeof(formation4));
+    memset(&formation_status, 0, sizeof(formation_status));
+#endif
+
+
+
+#ifdef UI_STRIVE
+    if (_formation_sub1 < 0) {
+        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
+    }
+    if (_formation_sub2 < 0) {
+        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
+    }
+    if (_formation_sub3 < 0) {
+        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
+    }
+    if (_formation_sub4 < 0) {
+        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
+    }
+#endif
+#ifdef RECEIVE_STATUS
+    if(return_flag_sub < 0)
+    {
+        return_flag_sub = orb_subscribe(ORB_ID(follow_to_commander));
+    }
+#endif
+
+
 	while (!thread_should_exit) {
 
 		arming_ret = TRANSITION_NOT_CHANGED;
-
+#ifdef UI_STRIVE
+        orb_check(_formation_sub1, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub1, &formation1);
+            PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
+        }
+        orb_check(_formation_sub2, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub2, &formation2);
+            PX4_INFO("foramtion2.lat:%.7f", formation2.lat);
+        }
+        orb_check(_formation_sub3, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub3, &formation3);
+            PX4_INFO("foramtion3.lat:%.7f", formation3.lat);
+        }
+        orb_check(_formation_sub4, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub4, &formation4);
+            PX4_INFO("foramtion4.lat:%.7f", formation4.lat);
+        }
+//
+        if(MC_ID == 2)
+        {
+            formation_status.status = formation1.status;
+        }
+        if(MC_ID == 3)
+        {
+            formation_status.status = formation2.status;
+        }
+        if(MC_ID == 4)
+        {
+            formation_status.status = formation3.status;
+        }
+    #endif
 
 		/* update parameters */
 		orb_check(param_changed_sub, &updated);
@@ -2378,7 +2551,7 @@ int commander_thread_main(int argc, char *argv[])
 					status_changed = true;
 				}
 			}
-
+       // PX4_INFO("gps_position.timestamp: %llu",gps_position.timestamp);
 			if (gps_position.fix_type >= 3 && hrt_elapsed_time(&gps_position.timestamp) < FAILSAFE_DEFAULT_TIMEOUT) {
 				/* handle the case where gps was regained */
 				if (status_flags.gps_failure && !gpsIsNoisy) {
@@ -2386,6 +2559,7 @@ int commander_thread_main(int argc, char *argv[])
 					status_changed = true;
 					if (status_flags.condition_home_position_valid) {
 						mavlink_log_critical(&mavlink_log_pub, "GPS fix regained");
+                        PX4_INFO("GPS fix regained");
 					}
 				}
 
@@ -2393,6 +2567,7 @@ int commander_thread_main(int argc, char *argv[])
 				status_flags.gps_failure = true;
 				status_changed = true;
 				mavlink_log_critical(&mavlink_log_pub, "GPS fix lost");
+                PX4_INFO("GPS fix lost");
 			}
 		}
 
@@ -2916,7 +3091,36 @@ int commander_thread_main(int argc, char *argv[])
 		}
 
 		/* now set navigation state according to failsafe and main state */
-		bool nav_state_changed = set_nav_state(&status,
+        //use this fuction to change the state     yuli
+
+#ifdef RECEIVE_STATUS
+        orb_check(return_flag_sub, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(follow_to_commander), return_flag_sub, &return_flag);
+         //   PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
+        }
+
+#endif
+#ifdef CHANGE_STATE
+        if(sp_man.aux1 > 0.5f)
+        {
+           // PX4_INFO("sp_man.aux1 > 0.5f");
+            if(plan_time_flag == false)
+            {
+               task_start_time = hrt_absolute_time();
+               plan_time_flag = true;
+            }
+            task_planning_time = hrt_absolute_time() - task_start_time;
+            task_plan();
+        }
+        else
+        {
+            plan_time_flag = false;
+        }
+
+#endif
+        bool nav_state_changed = set_nav_state(&status,
 						       &internal_state,
 						       &mavlink_log_pub,
 						       (datalink_loss_enabled > 0),
@@ -2955,6 +3159,7 @@ int commander_thread_main(int argc, char *argv[])
 
 			status.timestamp = now;
 			orb_publish(ORB_ID(vehicle_status), status_pub, &status);
+            PX4_INFO("nav.state:%d",status.nav_state);
 
 			armed.timestamp = now;
 

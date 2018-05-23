@@ -66,6 +66,7 @@
 #include <poll.h>
 #include <drivers/drv_hrt.h>
 #include <arch/board/board.h>
+#define Follow_Target
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/manual_control_setpoint.h>
@@ -81,6 +82,9 @@
 #include <uORB/topics/multirotor_motor_limits.h>
 #include <uORB/topics/mc_att_ctrl_status.h>
 #include <uORB/topics/battery_status.h>
+#ifdef Follow_Target
+#include <uORB/topics/targ_heli.h>
+#endif
 #include <systemlib/param/param.h>
 #include <systemlib/err.h>
 #include <systemlib/perf_counter.h>
@@ -143,6 +147,11 @@ private:
 	int		_vehicle_status_sub;	/**< vehicle status subscription */
 	int 	_motor_limits_sub;		/**< motor limits subscription */
 	int 	_battery_status_sub;	/**< battery status subscription */
+#ifdef Follow_Target
+    int     _targ_heli_sub;
+    uint64_t  _catch_time;
+    bool _catch_flag ;
+#endif
 
 	orb_advert_t	_v_rates_sp_pub;		/**< rate setpoint publication */
 	orb_advert_t	_actuators_0_pub;		/**< attitude actuator controls publication */
@@ -164,6 +173,11 @@ private:
 	struct multirotor_motor_limits_s	_motor_limits;		/**< motor limits */
 	struct mc_att_ctrl_status_s 		_controller_status; /**< controller status */
 	struct battery_status_s				_battery_status;	/**< battery status */
+
+#ifdef Follow_Target
+    struct targ_heli_s _targ_heli;
+
+#endif
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 	perf_counter_t	_controller_latency_perf;
@@ -303,6 +317,14 @@ private:
 	 * Check for battery status updates.
 	 */
 	void		battery_status_poll();
+#ifdef Follow_Target
+    /**
+     * Check for followtarg updates.
+     */
+    void		followtarg_poll();
+
+#endif
+
 
 	/**
 	 * Shim for calling task_main from task_create.
@@ -334,6 +356,11 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_manual_control_sp_sub(-1),
 	_armed_sub(-1),
 	_vehicle_status_sub(-1),
+#ifdef Follow_Target
+    _targ_heli_sub(-1),
+    _catch_time(0.0),
+    _catch_flag(true),
+#endif
 
 	/* publications */
 	_v_rates_sp_pub(nullptr),
@@ -358,6 +385,9 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	memset(&_actuators, 0, sizeof(_actuators));
 	memset(&_armed, 0, sizeof(_armed));
 	memset(&_vehicle_status, 0, sizeof(_vehicle_status));
+#ifdef Follow_Target
+    memset(&_targ_heli, 0, sizeof(_targ_heli));
+#endif
 	memset(&_motor_limits, 0, sizeof(_motor_limits));
 	memset(&_controller_status, 0, sizeof(_controller_status));
 	_vehicle_status.is_rotary_wing = true;
@@ -633,7 +663,21 @@ MulticopterAttitudeControl::arming_status_poll()
 		orb_copy(ORB_ID(actuator_armed), _armed_sub, &_armed);
 	}
 }
+#ifdef Follow_Target
+void
+MulticopterAttitudeControl::followtarg_poll()
+{
+    bool updated;
+    orb_check(_targ_heli_sub, &updated);
 
+    if (updated) {
+        orb_copy(ORB_ID(targ_heli), _targ_heli_sub, &_targ_heli);
+    }
+
+}
+
+
+#endif
 void
 MulticopterAttitudeControl::vehicle_status_poll()
 {
@@ -861,6 +905,9 @@ MulticopterAttitudeControl::task_main()
 	_vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
 	_motor_limits_sub = orb_subscribe(ORB_ID(multirotor_motor_limits));
 	_battery_status_sub = orb_subscribe(ORB_ID(battery_status));
+#ifdef Follow_Target
+     _targ_heli_sub = orb_subscribe(ORB_ID(targ_heli));
+#endif
 
 	/* initialize parameters cache */
 	parameters_update();
@@ -916,7 +963,9 @@ MulticopterAttitudeControl::task_main()
 			vehicle_status_poll();
 			vehicle_motor_limits_poll();
 			battery_status_poll();
-
+#ifdef Follow_Target
+            followtarg_poll();
+#endif
 			/* Check if we are in rattitude mode and the pilot is above the threshold on pitch
 			 * or roll (yaw can rotate 360 in normal att control).  If both are true don't
 			 * even bother running the attitude controllers */
@@ -1020,6 +1069,28 @@ MulticopterAttitudeControl::task_main()
 				_controller_status.yaw_rate_integ = _rates_int(2);
 				_controller_status.timestamp = hrt_absolute_time();
 
+#ifdef Follow_Target
+              //  followtarg_poll();
+                if(_targ_heli.catched == true && _catch_flag == true)
+                {
+                    _catch_time = hrt_absolute_time();
+                    _catch_flag = false;
+                }
+                if(_targ_heli.catched == false)
+                {
+                     _catch_flag = true;
+
+                }
+                if(_targ_heli.catched == true && (hrt_absolute_time() - _catch_time) > 500000)
+                {
+                    _actuators.control[0] = 0.0f;
+                    _actuators.control[1] = 0.0f;
+                    _actuators.control[2] = 0.0f;
+                    _actuators.control[3] = 0.0f;
+
+                }
+//                PX4_INFO("_actuators.control[0] :%d",(double)_actuators.control[0]);
+#endif
 				if (!_actuators_0_circuit_breaker_enabled) {
 					if (_actuators_0_pub != nullptr) {
 
@@ -1058,7 +1129,7 @@ MulticopterAttitudeControl::start()
 	_control_task = px4_task_spawn_cmd("mc_att_control",
 					   SCHED_DEFAULT,
 					   SCHED_PRIORITY_MAX - 5,
-					   1500,
+                       2000,
 					   (px4_main_t)&MulticopterAttitudeControl::task_main_trampoline,
 					   nullptr);
 
