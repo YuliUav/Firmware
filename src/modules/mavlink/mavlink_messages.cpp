@@ -38,12 +38,24 @@
  * @author Lorenz Meier <lorenz@px4.io>
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
-
+#define UI_STRIVE       //used in UI_STRIVE competition to communicate with other UAVs in formation
+#define FOLLOWTARGET
 #include <stdio.h>
 #include <errno.h>
 
 #include "mavlink_main.h"
 #include "mavlink_messages.h"
+
+#ifdef UI_STRIVE
+#include <uORB/topics/ui_strive_formation_to_gcs.h>
+#include <uORB/topics/ui_strive_gcs_to_formation.h>
+#include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_formation_status.h>
+#include <v2.0/common/mavlink_msg_formation.h>
+#include <v2.0/common/mavlink_msg_formation_to_gcs.h>
+#include <v2.0/common/mavlink_msg_gcs_to_formation.h>
+
+#endif
 
 #include <commander/px4_custom_mode.h>
 #include <drivers/drv_pwm_output.h>
@@ -92,7 +104,9 @@
 #include <uORB/topics/mount_orientation.h>
 #include <uORB/topics/collision_report.h>
 #include <uORB/uORB.h>
-
+#ifdef FOLLOWTARGET
+#include <uORB/topics/targ_heli.h>
+#endif
 
 static uint16_t cm_uint16_from_m_float(float m);
 static void get_mavlink_mode_state(struct vehicle_status_s *status, uint8_t *mavlink_state,
@@ -1633,7 +1647,6 @@ protected:
 			msg.vx = pos.vx;
 			msg.vy = pos.vy;
 			msg.vz = pos.vz;
-
 			mavlink_msg_local_position_ned_send_struct(_mavlink->get_channel(), &msg);
 		}
 	}
@@ -1712,7 +1725,6 @@ protected:
 			msg.covariance[9] = est.nan_flags;
 			msg.covariance[10] = est.health_flags;
 			msg.covariance[11] = est.timeout_flags;
-
 			mavlink_msg_local_position_ned_cov_send_struct(_mavlink->get_channel(), &msg);
 		}
 	}
@@ -2583,7 +2595,6 @@ protected:
 			msg.afx = pos_sp.acc_x;
 			msg.afy = pos_sp.acc_y;
 			msg.afz = pos_sp.acc_z;
-
 			mavlink_msg_position_target_local_ned_send_struct(_mavlink->get_channel(), &msg);
 		}
 	}
@@ -3591,7 +3602,90 @@ protected:
 		}
 	}
 };
+#ifdef UI_STRIVE
+class MavlinkStreamFormation : public MavlinkStream
+{
+public:
+    const char *get_name() const
+    {
+        return MavlinkStreamFormation::get_name_static();
+    }
 
+    static const char *get_name_static()
+    {
+        return "Formation";
+    }
+
+    static uint16_t get_id_static()
+    {
+        return MAVLINK_MSG_ID_FORMATION;
+    }
+
+    uint16_t get_id()
+    {
+        return get_id_static();
+    }
+
+    static MavlinkStream *new_instance(Mavlink *mavlink)
+    {
+        return new MavlinkStreamFormation(mavlink);
+    }
+
+    unsigned get_size()
+    {
+        return MAVLINK_MSG_ID_FORMATION_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;//MAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+    }
+
+private:
+    MavlinkOrbSubscription *_pos_sub;
+    uint64_t _pos_time;
+
+    MavlinkOrbSubscription *_formation_status_sub;
+    uint64_t _formation_status_time;
+
+    MavlinkOrbSubscription *_local_pos_sub;
+    uint64_t _local_pos_time;
+
+    /* do not allow top copying this class */
+    MavlinkStreamFormation(MavlinkStreamFormation &);
+    MavlinkStreamFormation &operator = (const MavlinkStreamFormation &);
+
+protected:
+    explicit MavlinkStreamFormation(Mavlink *mavlink) : MavlinkStream(mavlink),
+        _pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_gps_position))),
+        _pos_time(0),
+        _formation_status_sub(_mavlink->add_orb_subscription(ORB_ID(ui_strive_formation_status))),
+        _formation_status_time(0),
+        _local_pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_local_position))),
+        _local_pos_time(0)
+    {}
+
+    void send(const hrt_abstime t)
+    {
+        struct vehicle_gps_position_s pos;
+        struct ui_strive_formation_status_s formation_status;
+        struct vehicle_local_position_s local_pos;
+        bool updated = _pos_sub->update(&_pos_time, &pos);
+        updated |= _formation_status_sub->update(&_formation_status_time, &formation_status);
+        updated |= _local_pos_sub->update(&_local_pos_time, &local_pos);
+        if (updated) {
+            mavlink_formation_t msg;
+
+            msg.lat = pos.lat;
+            msg.lon = pos.lon;
+            msg.alt = pos.alt;
+
+            msg.vel_n = pos.vel_n_m_s;
+            msg.vel_e = pos.vel_e_m_s;
+            msg.vel_d = pos.vel_d_m_s;
+            msg.status = 3;//formation_status.status;   //
+//            PX4_INFO("lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
+            mavlink_msg_formation_send_struct(_mavlink->get_channel(), &msg);
+        }
+    }
+};
+
+#endif
 const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static, &MavlinkStreamHeartbeat::get_id_static),
 	new StreamListItem(&MavlinkStreamStatustext::new_instance, &MavlinkStreamStatustext::get_name_static, &MavlinkStreamStatustext::get_id_static),
@@ -3638,5 +3732,8 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamCollision::new_instance, &MavlinkStreamCollision::get_name_static, &MavlinkStreamCollision::get_id_static),
 	new StreamListItem(&MavlinkStreamWind::new_instance, &MavlinkStreamWind::get_name_static, &MavlinkStreamWind::get_id_static),
 	new StreamListItem(&MavlinkStreamMountOrientation::new_instance, &MavlinkStreamMountOrientation::get_name_static, &MavlinkStreamMountOrientation::get_id_static),
+#ifdef UI_STRIVE
+    new StreamListItem(&MavlinkStreamFormation::new_instance, &MavlinkStreamFormation::get_name_static, &MavlinkStreamFormation::get_id_static),
+#endif
 	nullptr
 };

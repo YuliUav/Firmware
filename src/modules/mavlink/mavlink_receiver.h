@@ -40,7 +40,7 @@
  */
 
 #pragma once
-
+#define UI_STRIVE       //used for ui_srive competition test
 #include <systemlib/perf_counter.h>
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
@@ -79,7 +79,11 @@
 #include <uORB/topics/gps_inject_data.h>
 #include <uORB/topics/control_state.h>
 #include <uORB/topics/collision_report.h>
-
+#ifdef UI_STRIVE
+#include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_formation_int32.h>
+#include <v2.0/common/mavlink_msg_formation.h>
+#endif
 
 #include "mavlink_ftp.h"
 
@@ -149,9 +153,10 @@ private:
 	void handle_message_battery_status(mavlink_message_t *msg);
 	void handle_message_serial_control(mavlink_message_t *msg);
 	void handle_message_logging_ack(mavlink_message_t *msg);
-
+#ifdef UI_STRIVE
+    void handle_message_formation(mavlink_message_t *msg);
+#endif
 	void *receive_thread(void *arg);
-
 	/**
 	 * Set the interval at which the given message stream is published.
 	 * The rate is the number of messages per second.
@@ -193,6 +198,9 @@ private:
 	struct vehicle_local_position_s hil_local_pos;
 	struct vehicle_land_detected_s hil_land_detector;
 	struct vehicle_control_mode_s _control_mode;
+#ifdef UI_STRIVE
+    struct ui_strive_formation_s _ui_strive_formation;
+#endif
 	orb_advert_t _global_pos_pub;
 	orb_advert_t _local_pos_pub;
 	orb_advert_t _attitude_pub;
@@ -230,6 +238,13 @@ private:
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
+#ifdef UI_STRIVE
+    orb_advert_t _formation_pub1;
+    orb_advert_t _formation_pub2;
+    orb_advert_t _formation_pub3;
+    orb_advert_t _formation_pub4;
+    orb_advert_t mavlink_log_pub;
+#endif
 	int _control_mode_sub;
 	int _hil_frames;
 	uint64_t _old_timestamp;
@@ -245,7 +260,9 @@ private:
 	double _time_offset_avg_alpha;
 	int64_t _time_offset;
 	int	_orb_class_instance;
-
+#ifdef UI_STRIVE
+    int	_orb_class_formation_instance;
+#endif
 	static constexpr unsigned MOM_SWITCH_COUNT = 8;
 
 	uint8_t _mom_switch_pos[MOM_SWITCH_COUNT];

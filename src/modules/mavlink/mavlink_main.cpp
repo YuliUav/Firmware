@@ -38,7 +38,7 @@
  * @author Julian Oes <julian@oes.ch>
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
-
+#define UI_STRIVE
 #include <px4_config.h>
 #include <px4_defines.h>
 #include <px4_getopt.h>
@@ -1992,6 +1992,9 @@ Mavlink::task_main(int argc, char *argv[])
 		configure_stream("NAMED_VALUE_FLOAT", 1.0f);
 		configure_stream("VFR_HUD", 4.0f);
 		configure_stream("WIND_COV", 1.0f);
+#ifdef UI_STRIVE
+        configure_stream("Formation", 5.0f);
+#endif
 		break;
 
 	case MAVLINK_MODE_ONBOARD:
