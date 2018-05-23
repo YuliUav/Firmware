@@ -124,6 +124,12 @@ set(msg_file_names
 	vehicle_roi.msg
 	mount_orientation.msg
 	collision_report.msg
+	ui_strive_formation_to_gcs.msg
+	ui_strive_gcs_to_formation.msg
+	ui_strive_gcs_to_formation_int32.msg
+	ui_strive_formation.msg
+	ui_strive_formation_int32.msg
+	ui_strive_formation_status.msg
 	)
 
 # Get absolute paths
