@@ -233,6 +233,7 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		break;
 
 	case MAVLINK_MSG_ID_PING:
+
 		handle_message_ping(msg);
 		break;
 
@@ -1543,10 +1544,11 @@ MavlinkReceiver::handle_message_ping(mavlink_message_t *msg)
 {
 	mavlink_ping_t ping;
 	mavlink_msg_ping_decode(msg, &ping);
-
+    PX4_INFO("Ping, rec sysid:%d,compid:%d,...send sysid:%d,compid:%d,seq:%d",mavlink_system.sysid,mavlink_system.compid,ping.target_system,ping.target_component);
 	if ((mavlink_system.sysid == ping.target_system) &&
 	    (mavlink_system.compid == ping.target_component)) {
 		mavlink_msg_ping_send_struct(_mavlink->get_channel(), &ping);
+        PX4_INFO("Ping send back");
 	}
 }
 

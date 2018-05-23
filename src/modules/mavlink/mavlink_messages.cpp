@@ -39,7 +39,7 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
 #define UI_STRIVE       //used in UI_STRIVE competition to communicate with other UAVs in formation
-#define FOLLOWTARGET
+
 #include <stdio.h>
 #include <errno.h>
 
@@ -104,9 +104,7 @@
 #include <uORB/topics/mount_orientation.h>
 #include <uORB/topics/collision_report.h>
 #include <uORB/uORB.h>
-#ifdef FOLLOWTARGET
-#include <uORB/topics/targ_heli.h>
-#endif
+
 
 static uint16_t cm_uint16_from_m_float(float m);
 static void get_mavlink_mode_state(struct vehicle_status_s *status, uint8_t *mavlink_state,
