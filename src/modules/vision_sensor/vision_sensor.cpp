@@ -69,34 +69,35 @@
 
 //#include <v1.0/heli_msg/common/mavlink.h>
 //#include <v1.0/heli_msg/mavlink_helpers.h>
-//#include <v1.0/vision_sensor/common/mavlink_msg_vision_sensor.h>
 //#include <v2.0/common/mavlink_msg_vision_data.h>
 #include <v2.0/common/mavlink.h>
 //#include <v2.0/mavlink_helpers.h>
 
-
+#define BUFFERSIZE 128
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int vision_sensor_task;				/**< Handle of daemon task / thread */
 int vision_uart_read= -1;
-struct control_state_s				_ctrl_state_q4;		/**< control state */
+uint8_t receive_buf[BUFFERSIZE];
+struct control_state_s _ctrl_state_q4;		/**< control state */
 int _control_state_sub = -1;
 bool _control_state_update = false;
 
+orb_advert_t vision_sensor_pub_fd;
 struct vision_sensor_s vision_sensor_NED;
 struct vision_sensor_s vision_sensor_BODY;
-orb_advert_t vision_sensor_pub_fd;
-
-mavlink_vision_data_t vision_sensor_msg;
-
-
 int vehicle_status_sub = -1;
 bool vehicle_status_update = false;
 struct map_projection_reference_s own_ref;
-
-
 struct targ_heli_s own_stat;
 orb_advert_t own_stat_publish_fd;
+
+/*************** mavlink message related data****************/
+mavlink_message_t msg_received; //received mavlink message
+mavlink_vision_data_t vision_sensor_msg;
+mavlink_status_t status;
+
+
 /**
  * daemon management function.
  */
@@ -199,7 +200,7 @@ void sensor_handle_message(mavlink_message_t *msg);
 
 void sensor_handle_message(mavlink_message_t *msg)
 {
-////    PX4_INFO("msgid:%d",msg->msgid);
+    PX4_INFO("msgid:%d",msg->msgid);
     switch (msg->msgid) {
     case MAVLINK_MSG_ID_VISION_DATA:
         mavlink_msg_vision_data_decode(msg, &vision_sensor_msg);
@@ -212,7 +213,11 @@ void sensor_handle_message(mavlink_message_t *msg)
         vision_sensor_BODY.vision_vz = vision_sensor_msg.vision_vz;
         vision_sensor_BODY.vision_distortion_x = vision_sensor_msg.pixel_x;
         vision_sensor_BODY.vision_distortion_y = vision_sensor_msg.pixel_y;
-
+        vision_sensor_BODY.status = vision_sensor_msg.status;
+        PX4_INFO("vision_x:%.3f,vision_y:%.3f,vision_z:%.3f,vision_vx:%.3f,vision_vy:%.3f,vision_vz:%.3f,distortion_x:%d,distortion_y:%d",
+         (double)vision_sensor_BODY.vision_x, (double)vision_sensor_BODY.vision_y, (double)vision_sensor_BODY.vision_z,
+         (double)vision_sensor_BODY.vision_vx,(double)vision_sensor_BODY.vision_vy, (double)vision_sensor_BODY.vision_vz,
+         vision_sensor_BODY.vision_distortion_x, vision_sensor_BODY.vision_distortion_y);
       //  orb_publish(ORB_ID(targ_heli), heli_stat_pub_fd, &heli_stat);
         break;
      }
@@ -264,6 +269,10 @@ int vision_sensor_main(int argc, char *argv[])
 
 int vision_sensor_thread_main(int argc, char *argv[])
 {
+    memset(receive_buf, 0, sizeof(receive_buf));
+    memset(&msg_received, 0, sizeof(msg_received));
+    memset(&status, 0, sizeof(status));
+
     memset(&_ctrl_state_q4, 0, sizeof(_ctrl_state_q4));
     memset(&vision_sensor_NED, 0, sizeof(vision_sensor_NED));
     memset(&vision_sensor_BODY, 0, sizeof(vision_sensor_BODY));
@@ -272,13 +281,7 @@ int vision_sensor_thread_main(int argc, char *argv[])
     struct vehicle_global_position_s vehicle_status;
     memset(&vehicle_status,0,sizeof(vehicle_status));
 
-     own_stat_publish_fd = orb_advertise(ORB_ID(targ_heli), &own_stat);
-
-
-
-    warnx("[daemon] starting\n");
-
-
+    own_stat_publish_fd = orb_advertise(ORB_ID(targ_heli), &own_stat);
     /*
      * TELEM1 : /dev/ttyS1
      * TELEM2 : /dev/ttyS2
@@ -304,7 +307,16 @@ int vision_sensor_thread_main(int argc, char *argv[])
 	thread_running = true;
 
 	while (!thread_should_exit) {
-
+        int32_t bytes_read = read(vision_uart_read, receive_buf, BUFFERSIZE);
+        PX4_INFO("bytes_read:%d",bytes_read);
+        for(int32_t i = 0; i < bytes_read; i++)
+        {
+            if (mavlink_parse_char(0, receive_buf[i], &msg_received, &status))
+            {
+                printf("Received message with ID %d, sequence: %d from component %d of system %d", msg_received.msgid, msg_received.seq, msg_received.compid, msg_received.sysid);
+                sensor_handle_message(&msg_received);
+            }
+        }
         if (_control_state_sub < 0)
             _control_state_sub  = orb_subscribe(ORB_ID(control_state));
         orb_check(_control_state_sub , &_control_state_update);
@@ -359,10 +371,9 @@ int vision_sensor_thread_main(int argc, char *argv[])
 
 
        orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
-        warnx("Hello daemon!\n");
-		sleep(10);
+//        warnx("Hello daemon!\n");
+        usleep(100000); //100ms
 	}
-
 	warnx("[daemon] exiting.\n");
 
 	thread_running = false;
