@@ -82,7 +82,6 @@
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_formation_int32.h>
-#include <v2.0/common/mavlink_msg_formation.h>
 #endif
 
 #include "mavlink_ftp.h"
