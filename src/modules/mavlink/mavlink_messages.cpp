@@ -51,10 +51,6 @@
 #include <uORB/topics/ui_strive_gcs_to_formation.h>
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_formation_status.h>
-#include <v2.0/common/mavlink_msg_formation.h>
-#include <v2.0/common/mavlink_msg_formation_to_gcs.h>
-#include <v2.0/common/mavlink_msg_gcs_to_formation.h>
-
 #endif
 
 #include <commander/px4_custom_mode.h>
