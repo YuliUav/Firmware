@@ -12,6 +12,6 @@ float32 vision_z		        # vision_z, (metres)
 float32 vision_vx                       #(m/s)
 float32 vision_vy                       #(m/s)
 float32 vision_vz                       #(m/s)
-float32 vision_distortion_x		# vision_distortion_x,(metres) 
-float32 vision_distortion_y             # vision_distortion_y,(metres) 
-
+int32 vision_distortion_x		# vision_distortion_x,(metres) 
+int32 vision_distortion_y             	# vision_distortion_y,(metres) 
+int8 status				#is the vision data valid. 0:invalid, 1:valid
