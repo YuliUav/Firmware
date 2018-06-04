@@ -1026,8 +1026,20 @@ MulticopterPositionControl::control_manual(float dt)
     else
     {
         first_set_sp = true;
+        second_set_sp = false;
     }
 #endif
+#ifdef test0
+    if(_manual.aux2 > 0.5f)
+    {
+        _pos_sp = _pos1;
+    }
+    if(_manual.aux2 > -0.5f && _manual.aux2 < 0.5f)
+    {
+        _pos_sp = _pos2;
+    }
+#endif
+
 }
 
 void
@@ -1388,8 +1400,8 @@ MulticopterPositionControl::task_main()
 	bool was_armed = false;
 
 #ifdef test
-    _pos1 = {5.0f,-10.0f,-5.0f};
-    _pos2 = {5.0f,10.0f,-5.0f};
+    _pos1 = {10.0f,-10.0f,-5.0f};
+    _pos2 = {10.0f,10.0f,-5.0f};
 #endif
 	hrt_abstime t_prev = 0;
 
