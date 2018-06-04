@@ -49,6 +49,8 @@
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 #include <lib/geo/geo.h>
+#include <uORB/uORB.h>
+#include <drivers/drv_hrt.h>
 
 //
 
@@ -65,7 +67,7 @@
 #include <uORB/topics/vision_sensor.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/targ_heli.h>
-
+#include <uORB/topics/home_position.h>
 
 //#include <v1.0/heli_msg/common/mavlink.h>
 //#include <v1.0/heli_msg/mavlink_helpers.h>
@@ -82,7 +84,7 @@ int vision_uart_read= -1;
 struct control_state_s				_ctrl_state_q4;		/**< control state */
 int _control_state_sub = -1;
 bool _control_state_update = false;
-
+//bool _home_pos_update = false;
 struct vision_sensor_s vision_sensor_NED;
 struct vision_sensor_s vision_sensor_BODY;
 orb_advert_t vision_sensor_pub_fd;
@@ -97,6 +99,9 @@ struct map_projection_reference_s own_ref;
 
 struct targ_heli_s own_stat;
 orb_advert_t own_stat_publish_fd;
+
+struct home_position_s home_pos_tag;
+int  home_pos_tag_sub ;
 /**
  * daemon management function.
  */
@@ -267,12 +272,15 @@ int vision_sensor_thread_main(int argc, char *argv[])
     memset(&_ctrl_state_q4, 0, sizeof(_ctrl_state_q4));
     memset(&vision_sensor_NED, 0, sizeof(vision_sensor_NED));
     memset(&vision_sensor_BODY, 0, sizeof(vision_sensor_BODY));
+    memset(&own_ref, 0, sizeof(own_ref));
+    memset(&home_pos_tag, 0, sizeof(home_pos_tag));
     vision_sensor_pub_fd = orb_advertise(ORB_ID(vision_sensor), &vision_sensor_NED);
 
     struct vehicle_global_position_s vehicle_status;
     memset(&vehicle_status,0,sizeof(vehicle_status));
 
-     own_stat_publish_fd = orb_advertise(ORB_ID(targ_heli), &own_stat);
+    own_stat_publish_fd = orb_advertise(ORB_ID(targ_heli), &own_stat);
+    home_pos_tag_sub = -1;
 
 
 
@@ -347,6 +355,7 @@ int vision_sensor_thread_main(int argc, char *argv[])
        if(vehicle_status_update)
        {
            orb_copy(ORB_ID(vehicle_global_position), vehicle_status_sub, &vehicle_status);
+           PX4_INFO("vehicle_global_position: %.7f, %.7f, %.2f", vehicle_status.lat, vehicle_status.lon, (double)vehicle_status.alt);
        }
        map_projection_init(&own_ref,  vehicle_status.lat, vehicle_status.lon);
        map_projection_reproject(&own_ref, vision_sensor_NED.vision_x, vision_sensor_NED.vision_y,
@@ -358,9 +367,32 @@ int vision_sensor_thread_main(int argc, char *argv[])
        own_stat.yaw =  vehicle_status.yaw;
 
 
+       if (home_pos_tag_sub < 0)
+       {
+            home_pos_tag_sub  = orb_subscribe(ORB_ID(home_position));
+       }
+       bool _home_pos_update;
+       orb_check(home_pos_tag_sub , &_home_pos_update);
+       PX4_INFO("_home_pos_update :%d", _home_pos_update);
+       _home_pos_update = 1;
+       if(_home_pos_update)
+       {
+           orb_copy(ORB_ID(home_position), home_pos_tag_sub, &home_pos_tag);
+           PX4_INFO("home: %.7f, %.7f, %.2f", home_pos_tag.lat, home_pos_tag.lon, (double)home_pos_tag.alt);
+       }
+
+       own_stat.timestamp = hrt_absolute_time();
+       own_stat.lon = home_pos_tag.lon;
+       own_stat.lat = home_pos_tag.lat;
+       own_stat.alt = home_pos_tag.alt;
+       own_stat.yaw = home_pos_tag.yaw;
+       own_stat.vel_n = 0.0f;
+       own_stat.vel_e = 0.0f;
+       own_stat.vel_d = 0.0f;
+       PX4_INFO("own_stat.: %.7f, %.7f, %.2f", own_stat.lat, own_stat.lon, (double)own_stat.alt);
        orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
         warnx("Hello daemon!\n");
-		sleep(10);
+        usleep(100000);
 	}
 
 	warnx("[daemon] exiting.\n");

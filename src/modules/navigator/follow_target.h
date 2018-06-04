@@ -87,7 +87,7 @@ public:
 private:
 
 	static constexpr int TARGET_TIMEOUT_MS = 2500;
-	static constexpr int TARGET_ACCEPTANCE_RADIUS_M = 5;
+    static constexpr int TARGET_ACCEPTANCE_RADIUS_M = 5;
 	static constexpr int INTERPOLATION_PNTS = 20;
 	static constexpr float FF_K = .25F;
 	static constexpr float OFFSET_M = 8;
@@ -195,7 +195,7 @@ private:
     float set_hgt_offset;
     bool last_rtl = false;
     bool vision_enabled = false;
-    int follow_state = 0;
+    int follow_state = 10;
     bool midair_refueling = false;
     hrt_abstime refueling_time = 0;
     hrt_abstime vision_time = 0;

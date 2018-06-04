@@ -161,6 +161,7 @@ void FollowTarget::on_activation()
     _yaw_auto_max = math::radians(_param_yaw_auto_max.get());
 
     _follow_target_position = _param_tracking_side.get();
+    set_offset(3.0f,1.5f);//according the mc's ID
 
     if ((_follow_target_position > FOLLOW_FROM_LEFT) || (_follow_target_position < FOLLOW_FROM_RIGHT)) {
         _follow_target_position = FOLLOW_FROM_BEHIND;
@@ -204,6 +205,7 @@ void FollowTarget::on_activation()
 
 void FollowTarget::on_active()
 {
+    PX4_INFO("on_active()");
    // mavlink_log_info(&mavlink_log_pub, "follow target on active1");
 //    usleep(10000);
     struct map_projection_reference_s target_ref;
@@ -268,14 +270,28 @@ void FollowTarget::on_active()
 
 
 #ifdef FOLLOWTARGET
-    _follow_offset = _param_tracking_dist.get();
+//    _follow_offset = _param_tracking_dist.get();
     orb_check(_targ_heli_sub, &updated);
 #endif
 #ifdef SET_OFFSET
-    set_hgt_offset = _param_min_alt.get();
+   // set_hgt_offset = _param_min_alt.get();
+#endif
+#ifdef HOME_POSTION
+//    if(home_position_sub < 0)
+//    {
+//        home_position_sub = orb_subscribe(ORB_ID(home_position));
+//    }
+//    orb_check(home_position_sub, &updated);
+     PX4_INFO("updated :%d", updated);
+//    if(updated)
+//    {
+//        orb_copy(ORB_ID(home_position), home_position_sub, &home_position_distance);
+//       // PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
+//    }
 #endif
 
     if (updated) {
+        PX4_INFO("home_position_sub, &updated");
                 follow_target_s target_motion;
                 _target_updates++;
 
@@ -283,6 +299,7 @@ void FollowTarget::on_active()
                 _previous_target_motion = _current_target_motion;
         #ifdef FOLLOWTARGET
                 orb_copy(ORB_ID(targ_heli), _targ_heli_sub, &targ_heli);
+ //               orb_copy(ORB_ID(home_position), home_position_sub, &home_position_distance);
                 target_motion.timestamp = targ_heli.timestamp;
                 target_motion.lon = targ_heli.lon;
                 target_motion.lat = targ_heli.lat;
@@ -290,8 +307,17 @@ void FollowTarget::on_active()
                 target_motion.vx = targ_heli.vel_n;
                 target_motion.vy = targ_heli.vel_e;
                 target_motion.vz = targ_heli.vel_d;
+//////*********************************
+//                target_motion.timestamp = home_position_distance.timestamp;
+//                target_motion.lon = home_position_distance.lon;
+//                target_motion.lat = home_position_distance.lat;
+//                target_motion.alt = home_position_distance.alt;
+
+//////*************************************
+
                 climb_finished = targ_heli.climb_finished;
                 _yaw_angle = targ_heli.yaw;
+   //             _yaw_angle = home_position_distance.yaw;
                 _heli_follow_result.surely_arrive = false;
                 _heli_follow_result.finally_arrive = false;
 #ifdef SET_OFFSET
@@ -423,52 +449,34 @@ void FollowTarget::on_active()
  // mavlink_log_info(&mavlink_log_pub, "follow target on active2");
     if (target_velocity_valid() && updated) {
         dt_ms = ((_current_target_motion.timestamp - _previous_target_motion.timestamp) / 1000);
-//        PX4_INFO("valid & updated");
+        PX4_INFO("valid & updated");
         // ignore a small dt
         if (dt_ms > 10.0F) {
-
+            mavlink_log_info(&mavlink_log_pub, "dt_ms > 10.0F");
 #ifdef SET_OFFSET
-            set_offset(20.0f,-3.0f);//according the mc's ID
-//            if(last_rtl && follow_state == 0)
-//            {
-//               set_offset(10.0f,0.0f);
-//               follow_state = 1;
-//            }
-//            if(follow_state == 1 && (_target_distance).length() < 0.1f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 0.15  )
-//            {
-//                 set_offset(5.0f,0.0f);
-//                 follow_state = 2;
-//            }
-//            if(follow_state == 2 && (_target_distance).length() < 0.1f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 0.15  )
-//            {
-////              return;
-//            }
-//            if(vision_enabled)
-//            {
-//                 set_offset(5.0f,0.0f);
-//                 follow_state = 3;
-
-//            }
 
 
             switch (follow_state)
             {
             case 0:
             {
+                mavlink_log_info(&mavlink_log_pub, "case 0");
                 if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
                         && (last_rtl || MC_ID == 1)
                         &&  sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) < 1000.0)
                 {
-                    set_offset(10.0f,0.0f);
+                   // set_offset(10.0f,0.0f);
+                    set_offset(5.0f,1.5f);
                     follow_state = 1;//从准备区到视觉区
                 }
             }
 
             case 1:
             {
+                mavlink_log_info(&mavlink_log_pub, "case 1");
                 if( (_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0  )
                 {
-                     set_offset(5.0f,0.0f);
+                     set_offset(10.0f,1.5f);
                      follow_state = 2;//向mark点接近
                     if(vision_time_start == false)
                     {
@@ -493,6 +501,7 @@ void FollowTarget::on_active()
             }
             case 2:
             {
+                mavlink_log_info(&mavlink_log_pub, "case 2");
                 if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0)
                 {
                     rtl_status.status = 5;   //超过极限距离，返航
@@ -511,7 +520,7 @@ void FollowTarget::on_active()
 
                 if(vision_enabled)
                 {
-                     set_offset(5.0f,0.0f);
+                     set_offset(5.0f,5.0f);
                      follow_state = 3;    // 视觉定位
 
                 }
@@ -519,7 +528,8 @@ void FollowTarget::on_active()
             }
             case 3:
             {
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 &&midair_refueling ==false)
+                mavlink_log_info(&mavlink_log_pub, "case 3");
+                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 && midair_refueling ==false)
                 {
                     midair_refueling = true;
                     refueling_time = hrt_absolute_time();
@@ -532,12 +542,17 @@ void FollowTarget::on_active()
                 if(vision_enabled == false)
                 {
                     follow_state = 2;
+                    midair_refueling = false;
                 }
             }
             case 10:
             {
-                set_offset(20.0f,-3.0f);//according the mc's ID
+                mavlink_log_info(&mavlink_log_pub, "case 10");
+  //              set_offset(20.0f,-3.0f);//according the mc's ID
+                set_offset(3.0f,1.5f);//according the mc's ID
                 follow_state = 0;
+                midair_refueling = false;
+                vision_time_start = false;
 
             }
 
@@ -575,19 +590,23 @@ void FollowTarget::on_active()
             if (_est_target_vel.length() > .5F) {
                 _target_position_offset = _rot_matrix * _est_target_vel.normalized() * _follow_offset;
             }
-#ifdef FOLLOWTARGET0
-            _follow_target_position = _param_tracking_side.get();
+#ifdef FOLLOWTARGET
+            else
+            {
+            //    _follow_target_position = _param_tracking_side.get();
 
-            if ((_follow_target_position > FOLLOW_FROM_LEFT) || (_follow_target_position < FOLLOW_FROM_RIGHT)) {
-                _follow_target_position = FOLLOW_FROM_BEHIND;
+                if ((_follow_target_position > FOLLOW_FROM_LEFT) || (_follow_target_position < FOLLOW_FROM_RIGHT)) {
+                    _follow_target_position = FOLLOW_FROM_BEHIND;
+                }
+
+                _rot_matrix = (_follow_position_matricies[_follow_target_position]);
+
+                _heli_yaw(0) = cos((double)targ_heli.yaw);
+                _heli_yaw(1) = sin((double)targ_heli.yaw);
+                _heli_yaw(2) = 0;
+                _target_position_offset =  _rot_matrix * _heli_yaw * _follow_offset;
             }
 
-            _rot_matrix = (_follow_position_matricies[_follow_target_position]);
-
-            _heli_yaw(0) = cos((double)targ_heli.yaw);
-            _heli_yaw(1) = sin((double)targ_heli.yaw);
-            _heli_yaw(2) = 0;
-            _target_position_offset =  _rot_matrix * _heli_yaw * _follow_offset;
 #endif
             // are we within the target acceptance radius?
             // give a buffer to exit/enter the radius to give the velocity controller
@@ -652,7 +671,7 @@ void FollowTarget::on_active()
             if ((_target_distance).length() > 1.0F) {
 #endif
 
-#ifdef FOLLOWTARGET0
+#ifdef FOLLOWTARGET
                 //keep yaw angle is the same with the target yaw       *****jim 2018.1.10
                 _yaw_angle = targ_heli.yaw;
 #else
@@ -674,8 +693,9 @@ void FollowTarget::on_active()
 
             } else {
                 _yaw_angle = _yaw_rate = NAN;
-#ifdef FOLLOWTARGET0
+#ifdef FOLLOWTARGET
                 _yaw_angle = targ_heli.yaw;
+                // _yaw_angle = home_position_distance.yaw;
 #endif
             }
         }
@@ -721,6 +741,7 @@ void FollowTarget::on_active()
     switch (_follow_target_state) {
 
     case TRACK_POSITION: {
+        mavlink_log_info(&mavlink_log_pub,"TRACK_POSITION");
 
         if (_radius_entered == true) {
             _follow_target_state = TRACK_VELOCITY;
@@ -744,6 +765,7 @@ void FollowTarget::on_active()
     }
 
     case TRACK_VELOCITY: {
+        mavlink_log_info(&mavlink_log_pub,"TRACK_VELOCITY");
 
         if (_radius_exited == true) {
             _follow_target_state = TRACK_POSITION;
@@ -775,7 +797,7 @@ void FollowTarget::on_active()
         // and wait until a position is received
 
         follow_target_s target = {};
-
+         mavlink_log_info(&mavlink_log_pub,"SET_WAIT_FOR_TARGET_POSITION");
         // for now set the target at the minimum height above the uav
 
 
@@ -804,7 +826,9 @@ void FollowTarget::on_active()
 
     case WAIT_FOR_TARGET_POSITION: {
 #ifdef FOLLOWTARGET
+        mavlink_log_info(&mavlink_log_pub,"WAIT_FOR_TARGET_POSITION");
         _mission_item.yaw = targ_heli.yaw;
+    //    _mission_item.yaw = home_position_distance.yaw;
         bool item_reached = is_mission_item_reached();
 //        PX4_INFO("item_reached:%d, item_yaw:%.1f", item_reached,(double)_mission_item.yaw);
 #endif

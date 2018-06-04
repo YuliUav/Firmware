@@ -249,12 +249,12 @@ static bool can_arm_without_gps = false;
 #ifdef CHANGE_STATE
 hrt_abstime task_planning_time = 0;
 hrt_abstime task_start_time = 0;
-hrt_abstime takeoff_time = 10e6;
+hrt_abstime takeoff_time = 2e6;
 hrt_abstime followtarget_time = 10e6;
 hrt_abstime catch_time = 15e6;
 hrt_abstime docked_time = 20e6;
 hrt_abstime pos_ctl_time = 25e6;
-hrt_abstime return_time = 30e6;
+hrt_abstime return_time = 300e6;
 bool plan_time_flag = false;
 #endif
 
@@ -1326,11 +1326,12 @@ static void commander_set_home_position(orb_advert_t &homePub, home_position_s &
 	matrix::Eulerf euler = matrix::Quatf(attitude.q);
 	home.yaw = euler.psi();
 
-    //PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
+    PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
 
 	/* announce new home position */
 	if (homePub != nullptr) {
 		orb_publish(ORB_ID(home_position), homePub, &home);
+        PX4_INFO("orb_publish(ORB_ID(home_position)");
 
 	} else {
 		homePub = orb_advertise(ORB_ID(home_position), &home);
@@ -3073,12 +3074,14 @@ int commander_thread_main(int argc, char *argv[])
 
 		/* First time home position update - but only if disarmed */
 		if (!status_flags.condition_home_position_valid && !armed.armed) {
+            PX4_INFO("First time home position update ");
 			commander_set_home_position(home_pub, _home, local_position, global_position, attitude);
 		}
 
 		/* update home position on arming if at least 500 ms from commander start spent to avoid setting home on in-air restart */
 		else if (((!was_armed && armed.armed) || (was_landed && !land_detector.landed)) &&
 			(now > commander_boot_timestamp + INAIR_RESTART_HOLDOFF_INTERVAL)) {
+            PX4_INFO("update home position on arming  ");
 			commander_set_home_position(home_pub, _home, local_position, global_position, attitude);
 		}
 

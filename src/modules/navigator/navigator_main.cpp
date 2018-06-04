@@ -234,6 +234,7 @@ Navigator::home_position_update(bool force)
 
     if (updated || force) {
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
+        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 	}
 }
 
@@ -375,6 +376,7 @@ Navigator::task_main()
 //                continue;
 //            }
 //        }
+        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 		/* wait for up to 200ms for data */
 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
 //        PX4_WARN("_task_should_exit");
