@@ -85,7 +85,7 @@ extern mavlink_status_t *mavlink_get_channel_status(uint8_t chan);
 extern mavlink_message_t *mavlink_get_channel_buffer(uint8_t chan);
 
 //#include <v2.0/standard/mavlink.h>
-#include <v2.0/common/mavlink.h>  //added by zjm 2018.05.16
+#include <v2.0/common/mavlink.h>//added by zjm 2018.06.10
 __END_DECLS
 
 #endif /* MAVLINK_BRIDGE_HEADER_H */

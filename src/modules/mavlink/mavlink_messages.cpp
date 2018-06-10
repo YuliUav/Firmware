@@ -3659,6 +3659,10 @@ protected:
         struct vehicle_gps_position_s pos;
         struct ui_strive_formation_status_s formation_status;
         struct vehicle_local_position_s local_pos;
+        memset(&pos,0, sizeof(pos));
+        memset(&formation_status,0, sizeof(formation_status));
+        memset(&local_pos,0, sizeof(local_pos));
+
         bool updated = _pos_sub->update(&_pos_time, &pos);
         updated |= _formation_status_sub->update(&_formation_status_time, &formation_status);
         updated |= _local_pos_sub->update(&_local_pos_time, &local_pos);
@@ -3673,7 +3677,7 @@ protected:
             msg.vel_e = pos.vel_e_m_s;
             msg.vel_d = pos.vel_d_m_s;
             msg.status = 3;//formation_status.status;   //
-//            PX4_INFO("lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
+            PX4_INFO("lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
             mavlink_msg_formation_send_struct(_mavlink->get_channel(), &msg);
         }
     }
