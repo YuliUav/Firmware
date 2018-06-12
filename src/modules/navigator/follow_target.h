@@ -54,7 +54,7 @@
 #include "mission_block.h"
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
-#include <uORB/topics/ui_strive_formation_status.h>
+#include <v2.0/mavlink_types.h>
 #define Instance_MC_1 0             //formation status from mc1
 #define Instance_MC_2 1             //formation status from mc2
 #define Instance_MC_3 2             //formation status from mc3
@@ -68,7 +68,9 @@
 #ifdef RTL_flag
 #include <uORB/topics/follow_to_commander.h>
 #endif
-
+#ifdef UI_STRIVE
+extern mavlink_system_t mavlink_system;//it contains system id, you must'nt change this struct data anytime anywhere    ***zjm
+#endif
 class FollowTarget : public MissionBlock
 {
 
@@ -176,7 +178,6 @@ private:
     int _formation_sub3;
     int _formation_sub4;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
-    ui_strive_formation_status_s formation_status;
 #endif
 	uint64_t _target_updates;
 	uint64_t _last_update_time;

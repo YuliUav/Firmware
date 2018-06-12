@@ -94,7 +94,6 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
         _formation_sub2(-1),
         _formation_sub3(-1),
         _formation_sub4(-1),
-        _formation_status_pub(nullptr),
     #endif
     _target_updates(0),
     _last_update_time(0),
@@ -126,7 +125,6 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     memset(&formation2, 0, sizeof(formation2));
     memset(&formation3, 0, sizeof(formation3));
     memset(&formation4, 0, sizeof(formation4));
-    memset(&formation_status, 0, sizeof(formation_status));
 #endif
 #ifdef HOME_POSTION
     memset(&home_position_distance, 0, sizeof(home_position_distance));
@@ -204,8 +202,10 @@ void FollowTarget::on_activation()
 
 void FollowTarget::on_active()
 {
-   // mavlink_log_info(&mavlink_log_pub, "follow target on active1");
+//    mavlink_log_info(&mavlink_log_pub, "follow target on active1");
 //    usleep(10000);
+    mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
+
     struct map_projection_reference_s target_ref;
     math::Vector<3> target_reported_velocity(0, 0, 0);
     follow_target_s target_motion_with_offset = {};
