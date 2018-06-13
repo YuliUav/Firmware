@@ -2284,6 +2284,7 @@ void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
     _ui_strive_formation.vel_e = mav_formation_int32.vel_e;
     _ui_strive_formation.vel_d = mav_formation_int32.vel_d;
     _ui_strive_formation.status = mav_formation_int32.status;
+    _ui_strive_formation.kill = mav_formation_int32.kill;
     PX4_INFO("receive formation lon:%.7f,lat:%.7f,alt:%.3f,status:%d,id:%d,seq:%d",(double)_ui_strive_formation.lon, (double)_ui_strive_formation.lat, (double)_ui_strive_formation.alt,_ui_strive_formation.status,msg->sysid, msg->seq);
 
     if(msg->sysid == 1)
