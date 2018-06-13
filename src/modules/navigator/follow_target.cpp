@@ -136,6 +136,7 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
 #ifdef RTL_flag
     memset(&rtl_status, 0, sizeof(rtl_status));
     rtl_status_pub_fd = nullptr;
+    memset(&manual_control_lastrtl, 0, sizeof(manual_control_lastrtl));
 #endif
 
 }
@@ -198,9 +199,11 @@ void FollowTarget::on_activation()
     {
         home_position_sub = orb_subscribe(ORB_ID(home_position));
     }
-
-
 #endif
+    if(manual_control_lastrtl_sub < 0)
+    {
+        manual_control_lastrtl_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
+    }
 }
 
 void FollowTarget::on_active()
@@ -267,7 +270,11 @@ void FollowTarget::on_active()
         last_rtl = formation3.status == 12;
     }
 #endif
-
+     orb_check(manual_control_lastrtl_sub, &updated);
+     if(updated)
+     {
+         orb_copy(ORB_ID(manual_control_setpoint), manual_control_lastrtl_sub, &manual_control_lastrtl);
+     }
 
 #ifdef FOLLOWTARGET
 //    _follow_offset = _param_tracking_dist.get();
@@ -452,7 +459,7 @@ void FollowTarget::on_active()
         PX4_INFO("valid & updated");
         // ignore a small dt
         if (dt_ms > 10.0F) {
-            mavlink_log_info(&mavlink_log_pub, "dt_ms > 10.0F");
+  //          mavlink_log_info(&mavlink_log_pub, "dt_ms > 10.0F");
 #ifdef SET_OFFSET
 
 
@@ -461,22 +468,24 @@ void FollowTarget::on_active()
             case 0:
             {
                 mavlink_log_info(&mavlink_log_pub, "case 0");
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
-                        && (last_rtl || MC_ID == 1)
+                if((_target_position_offset + _target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
+                        && (last_rtl || MC_ID == 1||manual_control_lastrtl.aux2 > 0.5f)
                         &&  sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) < 1000.0)
                 {
                    // set_offset(10.0f,0.0f);
-                    set_offset(5.0f,1.5f);
+                    set_offset(5.0f,3.0f);
                     follow_state = 1;//从准备区到视觉区
                 }
+
+                break;
             }
 
             case 1:
             {
                 mavlink_log_info(&mavlink_log_pub, "case 1");
-                if( (_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0  )
+                if( (_target_position_offset + _target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0  )
                 {
-                     set_offset(10.0f,1.5f);
+                     set_offset(10.0f,3.0f);
                      follow_state = 2;//向mark点接近
                     if(vision_time_start == false)
                     {
@@ -485,9 +494,10 @@ void FollowTarget::on_active()
                     }
 
                  }
-                 if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
+                 if((hrt_absolute_time() - vision_time) > 60e6 && vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
                  {
                      rtl_status.status = 5;
+                     mavlink_log_info(&mavlink_log_pub, "rtl_status.status = 5");
                  }
 
 
@@ -497,12 +507,13 @@ void FollowTarget::on_active()
                     follow_state = 10;
                     vision_time_start = false;
                 }
+                break;
 
             }
             case 2:
             {
                 mavlink_log_info(&mavlink_log_pub, "case 2");
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0)
+                if((_target_position_offset + _target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0)
                 {
                     rtl_status.status = 5;   //超过极限距离，返航
                 }
@@ -510,6 +521,7 @@ void FollowTarget::on_active()
                 if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
                 {
                     rtl_status.status = 5;
+                    mavlink_log_info(&mavlink_log_pub, "rtl_status.status = 5");
                 }
 
                 if(sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) > 1000.0)
@@ -520,16 +532,17 @@ void FollowTarget::on_active()
 
                 if(vision_enabled)
                 {
-                     set_offset(5.0f,5.0f);
+                     set_offset(10.0f,5.0f);
                      follow_state = 3;    // 视觉定位
 
                 }
+                break;
 
             }
             case 3:
             {
                 mavlink_log_info(&mavlink_log_pub, "case 3");
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 && midair_refueling ==false)
+                if((_target_position_offset + _target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 && midair_refueling ==false)
                 {
                     midair_refueling = true;
                     refueling_time = hrt_absolute_time();
@@ -544,18 +557,22 @@ void FollowTarget::on_active()
                     follow_state = 2;
                     midair_refueling = false;
                 }
+                break;
             }
             case 10:
             {
                 mavlink_log_info(&mavlink_log_pub, "case 10");
   //              set_offset(20.0f,-3.0f);//according the mc's ID
-                set_offset(3.0f,1.5f);//according the mc's ID
+                set_offset(3.0f,3.0f);//according the mc's ID
                 follow_state = 0;
                 midair_refueling = false;
                 vision_time_start = false;
+                break;
 
             }
 
+            default:
+                break;
             }
 
 
@@ -621,6 +638,7 @@ void FollowTarget::on_active()
                 currentTime = hrt_absolute_time();
                 firstTime = false;
 //              PX4_INFO("currentTime, firstTime:%d", firstTime);
+                mavlink_log_info(&mavlink_log_pub, "currentTime, firstTime:%d", firstTime);
             }
             else if(hrt_elapsed_time(&currentTime) > 1e6)
             {
@@ -741,7 +759,7 @@ void FollowTarget::on_active()
     switch (_follow_target_state) {
 
     case TRACK_POSITION: {
-        mavlink_log_info(&mavlink_log_pub,"TRACK_POSITION");
+   //     mavlink_log_info(&mavlink_log_pub,"TRACK_POSITION");
 
         if (_radius_entered == true) {
             _follow_target_state = TRACK_VELOCITY;
@@ -765,7 +783,7 @@ void FollowTarget::on_active()
     }
 
     case TRACK_VELOCITY: {
-        mavlink_log_info(&mavlink_log_pub,"TRACK_VELOCITY");
+    //    mavlink_log_info(&mavlink_log_pub,"TRACK_VELOCITY");
 
         if (_radius_exited == true) {
             _follow_target_state = TRACK_POSITION;
@@ -797,7 +815,7 @@ void FollowTarget::on_active()
         // and wait until a position is received
 
         follow_target_s target = {};
-         mavlink_log_info(&mavlink_log_pub,"SET_WAIT_FOR_TARGET_POSITION");
+    //     mavlink_log_info(&mavlink_log_pub,"SET_WAIT_FOR_TARGET_POSITION");
         // for now set the target at the minimum height above the uav
 
 
@@ -826,7 +844,7 @@ void FollowTarget::on_active()
 
     case WAIT_FOR_TARGET_POSITION: {
 #ifdef FOLLOWTARGET
-        mavlink_log_info(&mavlink_log_pub,"WAIT_FOR_TARGET_POSITION");
+  //      mavlink_log_info(&mavlink_log_pub,"WAIT_FOR_TARGET_POSITION");
         _mission_item.yaw = targ_heli.yaw;
     //    _mission_item.yaw = home_position_distance.yaw;
         bool item_reached = is_mission_item_reached();

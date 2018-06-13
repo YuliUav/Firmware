@@ -14,3 +14,4 @@ float32 vel_e			# East velocity in NED earth-fixed frame, (metres/sec)
 float32 vel_d			# Down velocity in NED earth-fixed frame, (metres/sec)
 
 int8 status    	        # current status in formation. 0:on ground, 1:take off, 2:hovering, 3:following leading UAV in formation, 4:docking, 5:return to land, 6:landing
+bool kill               # 0:run,  1:run

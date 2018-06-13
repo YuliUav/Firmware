@@ -1544,11 +1544,11 @@ MavlinkReceiver::handle_message_ping(mavlink_message_t *msg)
 {
 	mavlink_ping_t ping;
 	mavlink_msg_ping_decode(msg, &ping);
-    PX4_INFO("Ping, rec sysid:%d,compid:%d,...send sysid:%d,compid:%d,seq:%d",mavlink_system.sysid,mavlink_system.compid,ping.target_system,ping.target_component);
+//    PX4_INFO("Ping receive sysid:%d,compid:%d,...Ping target sysid:%d,compid:%d,seq:%d",
+//             mavlink_system.sysid,mavlink_system.compid,ping.target_system,ping.target_component,ping.seq);
 	if ((mavlink_system.sysid == ping.target_system) &&
 	    (mavlink_system.compid == ping.target_component)) {
-		mavlink_msg_ping_send_struct(_mavlink->get_channel(), &ping);
-        PX4_INFO("Ping send back");
+        mavlink_msg_ping_send_struct(_mavlink->get_channel(), &ping);
 	}
 }
 
@@ -2284,7 +2284,7 @@ void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
     _ui_strive_formation.vel_e = mav_formation_int32.vel_e;
     _ui_strive_formation.vel_d = mav_formation_int32.vel_d;
     _ui_strive_formation.status = mav_formation_int32.status;
-//    PX4_INFO("receive formation lon:%.7f,lat:%.7f,alt:%.3f,status:%d,id:%d,seq:%d",(double)_ui_strive_formation.lon, (double)_ui_strive_formation.lat, (double)_ui_strive_formation.alt,_ui_strive_formation.status,msg->sysid, msg->seq);
+    PX4_INFO("receive formation lon:%.7f,lat:%.7f,alt:%.3f,status:%d,id:%d,seq:%d",(double)_ui_strive_formation.lon, (double)_ui_strive_formation.lat, (double)_ui_strive_formation.alt,_ui_strive_formation.status,msg->sysid, msg->seq);
 
     if(msg->sysid == 1)
     {

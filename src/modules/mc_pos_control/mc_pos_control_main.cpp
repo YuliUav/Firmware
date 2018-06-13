@@ -996,7 +996,7 @@ MulticopterPositionControl::control_manual(float dt)
 			_vel_sp(2) = req_vel_sp_scaled(2);
 		}
 	}
-#ifdef test
+#ifdef test0
     if(_manual.aux2 > 0.5f)
     {
 

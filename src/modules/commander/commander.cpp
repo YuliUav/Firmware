@@ -45,14 +45,14 @@
  */
 
 #define  CHANGE_STATE //yuli
-//#define UI_STRIVE
+#define UI_STRIVE
 #include <cmath>	// NAN
 
 #ifdef  CHANGE_STATE
 #include <drivers/drv_hrt.h>
-//#define MC_ID 4      //本机的ID号（1、2、3、4）
+#define MC_ID 1      //本机的ID号（1、2、3、4）
 #endif
-
+#define emergency_stop
 #define RECEIVE_STATUS
 /* commander module headers */
 #include "accelerometer_calibration.h"
@@ -137,7 +137,6 @@
 #ifdef RECEIVE_STATUS
 #include <uORB/topics/follow_to_commander.h>
 #endif
-
 
 typedef enum VEHICLE_MODE_FLAG
 {
@@ -2867,14 +2866,23 @@ int commander_thread_main(int argc, char *argv[])
 			}
 
 			/* check throttle kill switch */
-			if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+#ifdef emergency_stop
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON ||(MC_ID != 1 && formation1.kill == 1)) {
+#else
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+#endif
+
 				/* set lockdown flag */
 				if (!armed.lockdown) {
 					mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH ENGAGED");
 				}
 				armed.lockdown = true;
-			} else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {
-				if (armed.lockdown) {
+#ifdef emergency_stop
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF && (MC_ID == 1 || formation1.kill == 0)) {
+#else
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {
+#endif
+                if (armed.lockdown) {
 					mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH OFF");
 				}
 				armed.lockdown = false;
@@ -3106,7 +3114,7 @@ int commander_thread_main(int argc, char *argv[])
 
 #endif
 #ifdef CHANGE_STATE
-        if(sp_man.aux1 > 0.5f)
+        if( (MC_ID != 1 || sp_man.aux1 > 0.5f) && (MC_ID == 1 || formation1.status == 1))
         {
            // PX4_INFO("sp_man.aux1 > 0.5f");
             if(plan_time_flag == false)

@@ -59,7 +59,7 @@
 #define Instance_MC_2 1             //formation status from mc2
 #define Instance_MC_3 2             //formation status from mc3
 #define Instance_MC_4 3             //formation status from mc4
-#define MC_ID 4      //本机的ID号（1、2、3、4）
+#define MC_ID 2      //本机的ID号（1、2、3、4）
 #endif
 #ifdef HOME_POSTION
 #include <uORB/topics/home_position.h>
@@ -67,6 +67,7 @@
 #include <uORB/topics/vision_sensor.h>
 #ifdef RTL_flag
 #include <uORB/topics/follow_to_commander.h>
+#include <uORB/topics/manual_control_setpoint.h>
 #endif
 
 class FollowTarget : public MissionBlock
@@ -210,6 +211,8 @@ private:
 #ifdef RTL_flag
     follow_to_commander_s  rtl_status;
     orb_advert_t rtl_status_pub_fd;
+    manual_control_setpoint_s manual_control_lastrtl;
+    int manual_control_lastrtl_sub = -1;
 #endif
 	follow_target_s _current_target_motion;
     follow_target_s _previous_target_motion;
