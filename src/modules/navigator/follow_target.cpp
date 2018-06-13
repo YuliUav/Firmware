@@ -90,10 +90,7 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     #endif
 
     #ifdef UI_STRIVE
-        _formation_sub1(-1),
-        _formation_sub2(-1),
-        _formation_sub3(-1),
-        _formation_sub4(-1),
+        _formation_sub(-1),
     #endif
     _target_updates(0),
     _last_update_time(0),
@@ -121,10 +118,7 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     // _heli_followtarg_pub = orb_advertise(ORB_ID(heli_followtarg), &_heli_follow_result);
 #endif
 #ifdef UI_STRIVE
-    memset(&formation1, 0, sizeof(formation1));
-    memset(&formation2, 0, sizeof(formation2));
-    memset(&formation3, 0, sizeof(formation3));
-    memset(&formation4, 0, sizeof(formation4));
+    memset(&formation, 0, sizeof(formation));
 #endif
 #ifdef HOME_POSTION
     memset(&home_position_distance, 0, sizeof(home_position_distance));
@@ -176,17 +170,8 @@ void FollowTarget::on_activation()
 
 #endif
 #ifdef UI_STRIVE
-    if (_formation_sub1 < 0) {
-        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
-    }
-    if (_formation_sub2 < 0) {
-        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
-    }
-    if (_formation_sub3 < 0) {
-        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
-    }
-    if (_formation_sub4 < 0) {
-        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
+    if (_formation_sub < 0) {
+        _formation_sub = orb_subscribe(ORB_ID(ui_strive_formation));
     }
 #endif
 
@@ -222,50 +207,31 @@ void FollowTarget::on_active()
     if(updated)
     {
         orb_copy(ORB_ID(home_position), home_position_sub, &home_position_distance);
-       // PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
+       // PX4_INFO("foramtion1.lat:%.7f", formation.lat);
     }
 #endif
 
 #ifdef UI_STRIVE
-    orb_check(_formation_sub1, &updated);
+    orb_check(_formation_sub, &updated);
     if(updated)
     {
-        orb_copy(ORB_ID(ui_strive_formation), _formation_sub1, &formation1);
-        PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
-    }
-    orb_check(_formation_sub2, &updated);
-    if(updated)
-    {
-        orb_copy(ORB_ID(ui_strive_formation), _formation_sub2, &formation2);
-        PX4_INFO("foramtion2.lat:%.7f", formation2.lat);
-    }
-    orb_check(_formation_sub3, &updated);
-    if(updated)
-    {
-        orb_copy(ORB_ID(ui_strive_formation), _formation_sub3, &formation3);
-        PX4_INFO("foramtion3.lat:%.7f", formation3.lat);
-    }
-    orb_check(_formation_sub4, &updated);
-    if(updated)
-    {
-        orb_copy(ORB_ID(ui_strive_formation), _formation_sub4, &formation4);
-        PX4_INFO("foramtion4.lat:%.7f", formation4.lat);
+        orb_copy(ORB_ID(ui_strive_formation), _formation_sub, &formation);
+        PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
     }
 
     if(MC_ID == 2)
     {
-        last_rtl = formation1.status == 12;
+        last_rtl = formation.status == 12;
     }
     if(MC_ID == 3)
     {
-        last_rtl = formation2.status == 12;
+        last_rtl = formation.status == 12;
     }
     if(MC_ID == 4)
     {
-        last_rtl = formation3.status == 12;
+        last_rtl = formation.status == 12;
     }
 #endif
-
 
 #ifdef FOLLOWTARGET
     _follow_offset = _param_tracking_dist.get();
