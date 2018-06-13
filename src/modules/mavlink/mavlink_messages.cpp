@@ -3667,9 +3667,9 @@ protected:
         if (updated) {
             mavlink_formation_t msg;
 
-            msg.lat = global_pos.lat;
-            msg.lon = global_pos.lon;
-            msg.alt = global_pos.alt;
+            msg.lat = global_pos.lat * 1e7;
+            msg.lon = global_pos.lon * 1e7;
+            msg.alt = (int32_t)(global_pos.alt * 1e3f);
 
             msg.vel_n = global_pos.vel_n;
             msg.vel_e = global_pos.vel_e;
