@@ -204,7 +204,7 @@ void FollowTarget::on_active()
 {
 //    mavlink_log_info(&mavlink_log_pub, "follow target on active1");
 //    usleep(10000);
-    mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
+//    mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
 
     struct map_projection_reference_s target_ref;
     math::Vector<3> target_reported_velocity(0, 0, 0);
