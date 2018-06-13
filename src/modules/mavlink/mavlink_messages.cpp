@@ -50,7 +50,8 @@
 #include <uORB/topics/ui_strive_formation_to_gcs.h>
 #include <uORB/topics/ui_strive_gcs_to_formation.h>
 #include <uORB/topics/ui_strive_formation.h>
-#include <uORB/topics/ui_strive_formation_status.h>
+#include <uORB/topics/commander_state.h>
+#include <uORB/topics/actuator_armed.h>
 #endif
 
 #include <commander/px4_custom_mode.h>
@@ -3631,14 +3632,14 @@ public:
     }
 
 private:
-    MavlinkOrbSubscription *_pos_sub;
-    uint64_t _pos_time;
+    MavlinkOrbSubscription *_global_pos_sub;
+    uint64_t _global_pos_time;
 
-    MavlinkOrbSubscription *_formation_status_sub;
-    uint64_t _formation_status_time;
+    MavlinkOrbSubscription *_actuator_armed_sub;
+    uint64_t _actuator_armed_time;
 
-    MavlinkOrbSubscription *_local_pos_sub;
-    uint64_t _local_pos_time;
+    MavlinkOrbSubscription *_commander_state_sub;
+    uint64_t _commander_state_time;
 
     /* do not allow top copying this class */
     MavlinkStreamFormation(MavlinkStreamFormation &);
@@ -3646,34 +3647,36 @@ private:
 
 protected:
     explicit MavlinkStreamFormation(Mavlink *mavlink) : MavlinkStream(mavlink),
-        _pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_gps_position))),
-        _pos_time(0),
-        _formation_status_sub(_mavlink->add_orb_subscription(ORB_ID(ui_strive_formation_status))),
-        _formation_status_time(0),
-        _local_pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_local_position))),
-        _local_pos_time(0)
+        _global_pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_global_position))),
+        _global_pos_time(0),
+        _actuator_armed_sub(_mavlink->add_orb_subscription(ORB_ID(actuator_armed))),
+        _actuator_armed_time(0),
+        _commander_state_sub(_mavlink->add_orb_subscription(ORB_ID(commander_state))),
+        _commander_state_time(0)
     {}
 
     void send(const hrt_abstime t)
     {
-        struct vehicle_gps_position_s pos;
-        struct ui_strive_formation_status_s formation_status;
-        struct vehicle_local_position_s local_pos;
-        bool updated = _pos_sub->update(&_pos_time, &pos);
-        updated |= _formation_status_sub->update(&_formation_status_time, &formation_status);
-        updated |= _local_pos_sub->update(&_local_pos_time, &local_pos);
+        struct vehicle_global_position_s global_pos;
+        struct actuator_armed_s actuator_armed;
+        struct commander_state_s commander_state;
+
+        bool updated = _global_pos_sub->update(&_global_pos_time, &global_pos);
+        updated |= _actuator_armed_sub->update(&_actuator_armed_time, &actuator_armed);
+        updated |= _commander_state_sub->update(&_commander_state_time, &commander_state);
         if (updated) {
             mavlink_formation_t msg;
 
-            msg.lat = pos.lat;
-            msg.lon = pos.lon;
-            msg.alt = pos.alt;
+            msg.lat = global_pos.lat * 1e7;
+            msg.lon = global_pos.lon * 1e7;
+            msg.alt = (int32_t)(global_pos.alt * 1e3f);
 
-            msg.vel_n = pos.vel_n_m_s;
-            msg.vel_e = pos.vel_e_m_s;
-            msg.vel_d = pos.vel_d_m_s;
-            msg.status = 3;//formation_status.status;   //
-//            PX4_INFO("lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
+            msg.vel_n = global_pos.vel_n;
+            msg.vel_e = global_pos.vel_e;
+            msg.vel_d = global_pos.vel_d;
+            msg.status = commander_state.main_state;//formation_status.status;   //
+            msg.kill = actuator_armed.lockdown;
+            PX4_INFO("send formation lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
             mavlink_msg_formation_send_struct(_mavlink->get_channel(), &msg);
         }
     }
