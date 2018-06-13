@@ -136,11 +136,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_gps_inject_data_pub(nullptr),
 	_command_ack_pub(nullptr),
 #ifdef UI_STRIVE
-    _formation_pub1(nullptr),
-    _formation_pub2(nullptr),
-    _formation_pub3(nullptr),
-    _formation_pub4(nullptr),
-    mavlink_log_pub(nullptr),
+    _ui_strive_formation_pub(nullptr),
 #endif
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
@@ -157,49 +153,24 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_time_offset_avg_alpha(0.6),
 	_time_offset(0),
 	_orb_class_instance(-1),
-#ifdef UI_STRIVE
-    _orb_class_formation_instance(-1),
-#endif
+
 	_mom_switch_pos{},
 	_mom_switch_state(0)
 {
+#ifdef UI_STRIVE
     memset(&_ui_strive_formation, 0, sizeof(_ui_strive_formation));
-    _formation_pub1 = orb_advertise_multi(ORB_ID(ui_strive_formation), &_ui_strive_formation, &_orb_class_formation_instance, ORB_PRIO_DEFAULT);
-    if(_formation_pub1 == nullptr)
-        mavlink_log_info(&mavlink_log_pub, "_formation_pub1 advertise failed");
-    PX4_INFO("_formation_pub1 _orb_class_formation_instance:%d",_orb_class_formation_instance);
-
-    _formation_pub2 = orb_advertise_multi(ORB_ID(ui_strive_formation), &_ui_strive_formation, &_orb_class_formation_instance, ORB_PRIO_DEFAULT);
-    if(_formation_pub2 == nullptr)
-        mavlink_log_info(&mavlink_log_pub, "_formation_pub2 advertise failed");
-    PX4_INFO("_formation_pub2 _orb_class_formation_instance:%d",_orb_class_formation_instance);
-
-    _formation_pub3 = orb_advertise_multi(ORB_ID(ui_strive_formation), &_ui_strive_formation, &_orb_class_formation_instance, ORB_PRIO_DEFAULT);
-    if(_formation_pub1 == nullptr)
-        mavlink_log_info(&mavlink_log_pub, "_formation_pub3 advertise failed");
-    PX4_INFO("_formation_pub3 _orb_class_formation_instance:%d",_orb_class_formation_instance);
-
-    _formation_pub4 = orb_advertise_multi(ORB_ID(ui_strive_formation), &_ui_strive_formation, &_orb_class_formation_instance, ORB_PRIO_DEFAULT);
-    if(_formation_pub1 == nullptr)
-        mavlink_log_info(&mavlink_log_pub, "_formation_pub4 advertise failed");
-    PX4_INFO("_formation_pub4 _orb_class_formation_instance:%d",_orb_class_formation_instance);
+    _ui_strive_formation_pub = orb_advertise(ORB_ID(ui_strive_formation), &_ui_strive_formation);
+    if(_ui_strive_formation_pub == nullptr)
+        mavlink_log_info(&mavlink_log_pub, "_ui_strive_formation_pub advertise failed");
+#endif
 }
 
 MavlinkReceiver::~MavlinkReceiver()
 {
 	orb_unsubscribe(_control_mode_sub);
 #ifdef UI_STRIVE
-    if (_formation_pub1 != nullptr) {
-        orb_unadvertise(_formation_pub1);
-    }
-    if (_formation_pub2 != nullptr) {
-        orb_unadvertise(_formation_pub2);
-    }
-    if (_formation_pub3 != nullptr) {
-        orb_unadvertise(_formation_pub3);
-    }
-    if (_formation_pub4 != nullptr) {
-        orb_unadvertise(_formation_pub4);
+    if (_ui_strive_formation_pub != nullptr) {
+        orb_unadvertise(_ui_strive_formation_pub);
     }
 #endif
 }
@@ -2273,40 +2244,22 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 #ifdef UI_STRIVE
 void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
 {
-    mavlink_formation_t mav_formation_int32;
+    mavlink_formation_t mav_formation;
 //    ui_strive_formation_s ui_strive_formation = {};
 
-    mavlink_msg_formation_decode(msg, &mav_formation_int32);
-    _ui_strive_formation.lon = mav_formation_int32.lon * 1e-7f;
-    _ui_strive_formation.lat = mav_formation_int32.lat * 1e-7f;
-    _ui_strive_formation.alt = mav_formation_int32.alt * 1e-3f;
-    _ui_strive_formation.vel_n = mav_formation_int32.vel_n;
-    _ui_strive_formation.vel_e = mav_formation_int32.vel_e;
-    _ui_strive_formation.vel_d = mav_formation_int32.vel_d;
-    _ui_strive_formation.status = mav_formation_int32.status;
-    _ui_strive_formation.kill = mav_formation_int32.kill;
+    mavlink_msg_formation_decode(msg, &mav_formation);
+    _ui_strive_formation.lon = mav_formation.lon * 1e-7f;
+    _ui_strive_formation.lat = mav_formation.lat * 1e-7f;
+    _ui_strive_formation.alt = mav_formation.alt * 1e-3f;
+    _ui_strive_formation.vel_n = mav_formation.vel_n;
+    _ui_strive_formation.vel_e = mav_formation.vel_e;
+    _ui_strive_formation.vel_d = mav_formation.vel_d;
+    _ui_strive_formation.status = mav_formation.status;
+    _ui_strive_formation.kill = mav_formation.kill;
+    _ui_strive_formation.sysid = msg->sysid;
     PX4_INFO("receive formation lon:%.7f,lat:%.7f,alt:%.3f,status:%d,id:%d,seq:%d",(double)_ui_strive_formation.lon, (double)_ui_strive_formation.lat, (double)_ui_strive_formation.alt,_ui_strive_formation.status,msg->sysid, msg->seq);
 
-    if(msg->sysid == 1)
-    {
-        PX4_INFO("sysid==1 _orb_class_instance1:%d,seq:%d", _orb_class_formation_instance,msg->seq);
-        orb_publish(ORB_ID(ui_strive_formation), _formation_pub1, &_ui_strive_formation);
-    }
-    else if(msg->sysid == 2)
-    {
-        PX4_INFO("sysid==2 _orb_class_instance1:%d,seq:%d", _orb_class_formation_instance,msg->seq);
-        orb_publish(ORB_ID(ui_strive_formation), _formation_pub2, &_ui_strive_formation);
-    }
-    else if(msg->sysid == 3)
-    {
-        PX4_INFO("sysid==3 _orb_class_instance1:%d,seq:%d", _orb_class_formation_instance,msg->seq);
-        orb_publish(ORB_ID(ui_strive_formation), _formation_pub3, &_ui_strive_formation);
-    }
-    else if(msg->sysid == 4)
-    {
-        PX4_INFO("sysid==4 _orb_class_instance1:%d,seq:%d", _orb_class_formation_instance,msg->seq);
-        orb_publish(ORB_ID(ui_strive_formation), _formation_pub4, &_ui_strive_formation);
-    }
+    orb_publish(ORB_ID(ui_strive_formation), _ui_strive_formation_pub, &_ui_strive_formation);
 }
 #endif
 /**

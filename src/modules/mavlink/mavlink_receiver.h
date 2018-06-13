@@ -81,7 +81,6 @@
 #include <uORB/topics/collision_report.h>
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
-#include <uORB/topics/ui_strive_formation_int32.h>
 #endif
 
 #include "mavlink_ftp.h"
@@ -238,10 +237,7 @@ private:
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
 #ifdef UI_STRIVE
-    orb_advert_t _formation_pub1;
-    orb_advert_t _formation_pub2;
-    orb_advert_t _formation_pub3;
-    orb_advert_t _formation_pub4;
+    orb_advert_t _ui_strive_formation_pub;
     orb_advert_t mavlink_log_pub;
 #endif
 	int _control_mode_sub;
