@@ -5,13 +5,14 @@
 # e.g. control inputs of the vehicle in a Kalman-filter implementation.
 #
 
-float64 lat			# Latitude, (degrees)
-float64 lon			# Longitude, (degrees)
-float32 alt			# Altitude AMSL, (meters)
+float64 lat		# Latitude, (degrees)
+float64 lon		# Longitude, (degrees)
+float32 alt		# Altitude AMSL, (meters)
 
-float32 vel_n			# North velocity in NED earth-fixed frame, (metres/sec)
-float32 vel_e			# East velocity in NED earth-fixed frame, (metres/sec)
-float32 vel_d			# Down velocity in NED earth-fixed frame, (metres/sec)
+float32 vel_n		# North velocity in NED earth-fixed frame, (metres/sec)
+float32 vel_e		# East velocity in NED earth-fixed frame, (metres/sec)
+float32 vel_d		# Down velocity in NED earth-fixed frame, (metres/sec)
 
-int8 status    	        # current status in formation. 0:on ground, 1:take off, 2:hovering, 3:following leading UAV in formation, 4:docking, 5:return to land, 6:landing
-bool kill               # 0:run,  1:run
+int8 status    	        # current state, 0:manual, 1:altctl, 2:posctl, 3:mission, 4:loiter, 5:rtl, 6:acro, 7:offboard, 8:stab, 9:ratitude, 10:takeoff, 11:land, 12:followtarg, 13:max
+int8 kill 		# kill 0:normal, 1:kill(stop motors)
+uint8 sysid		# sysID
