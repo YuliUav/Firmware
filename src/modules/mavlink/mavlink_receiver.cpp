@@ -98,6 +98,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_control_mode{},
 #ifdef UI_STRIVE
     _ui_strive_formation{},
+    _ui_strive_gcs_to_formation{},
 #endif
 	_global_pos_pub(nullptr),
 	_local_pos_pub(nullptr),
@@ -137,6 +138,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_command_ack_pub(nullptr),
 #ifdef UI_STRIVE
     _ui_strive_formation_pub(nullptr),
+    _ui_strive_gcs_to_formation_pub(nullptr),
 #endif
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
@@ -159,9 +161,8 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 {
 #ifdef UI_STRIVE
     memset(&_ui_strive_formation, 0, sizeof(_ui_strive_formation));
-    _ui_strive_formation_pub = orb_advertise(ORB_ID(ui_strive_formation), &_ui_strive_formation);
-    if(_ui_strive_formation_pub == nullptr)
-        mavlink_log_info(&mavlink_log_pub, "_ui_strive_formation_pub advertise failed");
+    memset(&_ui_strive_gcs_to_formation, 0, sizeof(_ui_strive_gcs_to_formation));
+
 #endif
 }
 
@@ -300,6 +301,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 #ifdef UI_STRIVE
     case MAVLINK_MSG_ID_FORMATION:
         handle_message_formation(msg);
+        break;
+    case MAVLINK_MSG_ID_GCS_TO_FORMATION:
+        handle_message_gcs_to_formation(msg);
+        break;
 #endif
 	default:
 		break;
@@ -2248,8 +2253,8 @@ void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
 //    ui_strive_formation_s ui_strive_formation = {};
 
     mavlink_msg_formation_decode(msg, &mav_formation);
-    _ui_strive_formation.lon = mav_formation.lon * 1e-7f;
-    _ui_strive_formation.lat = mav_formation.lat * 1e-7f;
+    _ui_strive_formation.lon = mav_formation.lon * 1e-7;
+    _ui_strive_formation.lat = mav_formation.lat * 1e-7;
     _ui_strive_formation.alt = mav_formation.alt * 1e-3f;
     _ui_strive_formation.vel_n = mav_formation.vel_n;
     _ui_strive_formation.vel_e = mav_formation.vel_e;
@@ -2258,9 +2263,37 @@ void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
     _ui_strive_formation.kill = mav_formation.kill;
     _ui_strive_formation.sysid = msg->sysid;
     PX4_INFO("receive formation lon:%.7f,lat:%.7f,alt:%.3f,status:%d,id:%d,seq:%d",(double)_ui_strive_formation.lon, (double)_ui_strive_formation.lat, (double)_ui_strive_formation.alt,_ui_strive_formation.status,msg->sysid, msg->seq);
+    // publish formation data
+    if (_ui_strive_formation_pub == nullptr) {
+        _ui_strive_formation_pub = orb_advertise(ORB_ID(ui_strive_formation), &_ui_strive_formation);
 
-    orb_publish(ORB_ID(ui_strive_formation), _ui_strive_formation_pub, &_ui_strive_formation);
+    } else {
+        orb_publish(ORB_ID(ui_strive_formation), _ui_strive_formation_pub, &_ui_strive_formation);
+    }
+
 }
+
+void MavlinkReceiver::handle_message_gcs_to_formation(mavlink_message_t *msg)
+{
+    mavlink_gcs_to_formation_t gcs_to_formation_position;
+    memset(&gcs_to_formation_position, 0, sizeof(gcs_to_formation_position));
+
+    mavlink_msg_gcs_to_formation_decode(msg, &gcs_to_formation_position);
+    _ui_strive_gcs_to_formation.leader_timestamp = gcs_to_formation_position.time_usec;
+    _ui_strive_gcs_to_formation.lon = gcs_to_formation_position.lon * 1e-7;
+    _ui_strive_gcs_to_formation.lat = gcs_to_formation_position.lat * 1e-7;
+    _ui_strive_gcs_to_formation.alt = gcs_to_formation_position.alt * 1e-3;
+
+    PX4_INFO("receive gcs to formation lon:%d,lon:%.7f,lat:%.7f,alt:%.3f,seq:%d", gcs_to_formation_position.lon, (double)_ui_strive_gcs_to_formation.lon, (double)_ui_strive_gcs_to_formation.lat, (double)_ui_strive_gcs_to_formation.alt, msg->seq);
+    // publish gcs to formation data
+    if (_ui_strive_gcs_to_formation_pub == nullptr) {
+        _ui_strive_gcs_to_formation_pub = orb_advertise(ORB_ID(ui_strive_gcs_to_formation), &_ui_strive_gcs_to_formation);
+
+    } else {
+        orb_publish(ORB_ID(ui_strive_gcs_to_formation), _ui_strive_gcs_to_formation_pub, &_ui_strive_gcs_to_formation);
+    }
+}
+
 #endif
 /**
  * Receive data from UART.

@@ -81,6 +81,7 @@
 #include <uORB/topics/collision_report.h>
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_gcs_to_formation.h>
 #endif
 
 #include "mavlink_ftp.h"
@@ -153,6 +154,7 @@ private:
 	void handle_message_logging_ack(mavlink_message_t *msg);
 #ifdef UI_STRIVE
     void handle_message_formation(mavlink_message_t *msg);
+    void handle_message_gcs_to_formation(mavlink_message_t *msg);
 #endif
 	void *receive_thread(void *arg);
 	/**
@@ -198,6 +200,7 @@ private:
 	struct vehicle_control_mode_s _control_mode;
 #ifdef UI_STRIVE
     struct ui_strive_formation_s _ui_strive_formation;
+    struct ui_strive_gcs_to_formation_s _ui_strive_gcs_to_formation;
 #endif
 	orb_advert_t _global_pos_pub;
 	orb_advert_t _local_pos_pub;
@@ -238,6 +241,7 @@ private:
 	orb_advert_t _command_ack_pub;
 #ifdef UI_STRIVE
     orb_advert_t _ui_strive_formation_pub;
+    orb_advert_t _ui_strive_gcs_to_formation_pub;
     orb_advert_t mavlink_log_pub;
 #endif
 	int _control_mode_sub;
