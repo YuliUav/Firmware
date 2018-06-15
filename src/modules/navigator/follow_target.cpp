@@ -223,6 +223,7 @@ void FollowTarget::on_active()
         PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
     }
     if(mavlink_system.sysid == formation.sysid + 1)
+
     {
         last_rtl = formation.status == 12;
     }

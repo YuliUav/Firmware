@@ -55,7 +55,10 @@
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
 
+
 #include <uORB/topics/ui_strive_formation_status.h>
+
+
 #include <v2.0/mavlink_types.h>
 
 #endif
