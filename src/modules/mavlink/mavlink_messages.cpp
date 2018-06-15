@@ -3676,7 +3676,7 @@ protected:
             msg.vel_d = global_pos.vel_d;
             msg.status = commander_state.main_state;//formation_status.status;   //
             msg.kill = actuator_armed.lockdown;
-            PX4_INFO("send formation lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
+//            PX4_INFO("send formation lon:%d,lat:%d,alt:%d,status:%d,channel:%d", msg.lon,msg.lat,msg.alt,msg.status,_mavlink->get_channel());
             mavlink_msg_formation_send_struct(_mavlink->get_channel(), &msg);
         }
     }
