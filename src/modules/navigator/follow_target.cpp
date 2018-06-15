@@ -91,6 +91,7 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
 
     #ifdef UI_STRIVE
         _formation_sub(-1),
+        _gcs_to_formation_sub(-1),
     #endif
     _target_updates(0),
     _last_update_time(0),
@@ -119,6 +120,7 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
 #endif
 #ifdef UI_STRIVE
     memset(&formation, 0, sizeof(formation));
+    memset(&gcs_to_formation, 0, sizeof(gcs_to_formation));
 #endif
 #ifdef HOME_POSTION
     memset(&home_position_distance, 0, sizeof(home_position_distance));
@@ -173,6 +175,9 @@ void FollowTarget::on_activation()
     if (_formation_sub < 0) {
         _formation_sub = orb_subscribe(ORB_ID(ui_strive_formation));
     }
+    if (_gcs_to_formation_sub < 0) {
+        _gcs_to_formation_sub = orb_subscribe(ORB_ID(ui_strive_gcs_to_formation));
+    }
 #endif
 
 #ifdef HOME_POSTION
@@ -218,7 +223,12 @@ void FollowTarget::on_active()
         orb_copy(ORB_ID(ui_strive_formation), _formation_sub, &formation);
         PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
     }
-
+    orb_check(_gcs_to_formation_sub, &updated);
+    if(updated)
+    {
+        orb_copy(ORB_ID(ui_strive_gcs_to_formation), _gcs_to_formation_sub, &gcs_to_formation);
+        PX4_INFO("gcs_to_formation.lat:%.7f", gcs_to_formation.lat);
+    }
     if(MC_ID == 2)
     {
         last_rtl = formation.status == 12;

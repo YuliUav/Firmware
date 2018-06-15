@@ -54,6 +54,7 @@
 #include "mission_block.h"
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
+#include <uORB/topics/ui_strive_gcs_to_formation.h>
 #include <v2.0/mavlink_types.h>
 
 #endif
@@ -170,7 +171,9 @@ private:
 
 #ifdef UI_STRIVE
     ui_strive_formation_s formation;  //data from 4 different vehicles    *****zjm
+    ui_strive_gcs_to_formation_s gcs_to_formation;  //data of leader uav
     int _formation_sub;
+    int _gcs_to_formation_sub;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
 #endif
 	uint64_t _target_updates;
