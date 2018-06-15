@@ -69,6 +69,7 @@
 #include <uORB/topics/targ_heli.h>
 #include <uORB/topics/home_position.h>
 #include <systemlib/mavlink_log.h>
+#include <uORB/topics/ui_strive_gcs_to_formation.h>
 //#include <v1.0/heli_msg/common/mavlink.h>
 //#include <v1.0/heli_msg/mavlink_helpers.h>
 //#include <v2.0/common/mavlink_msg_vision_data.h>
@@ -99,6 +100,10 @@ orb_advert_t mavlink_log_pub;
 struct home_position_s home_pos_tag;
 int  home_pos_tag_sub ;
 
+
+struct ui_strive_gcs_to_formation_s gcs_to_formation;
+int gcs_to_formation_sub;
+bool gcs_to_formation_update = false;
 /*************** mavlink message related data****************/
 mavlink_message_t msg_received; //received mavlink message
 mavlink_vision_data_t vision_sensor_msg;
@@ -298,6 +303,9 @@ int vision_sensor_thread_main(int argc, char *argv[])
     _control_state_sub  = orb_subscribe(ORB_ID(control_state));
     vehicle_status_sub  = orb_subscribe(ORB_ID(vehicle_global_position));
     home_pos_tag_sub  = orb_subscribe(ORB_ID(home_position));
+
+    gcs_to_formation_sub = orb_subscribe(ORB_ID(ui_strive_gcs_to_formation));
+    memset(&gcs_to_formation, 0, sizeof(gcs_to_formation));
     /*
      * TELEM1 : /dev/ttyS1
      * TELEM2 : /dev/ttyS2
@@ -335,6 +343,21 @@ int vision_sensor_thread_main(int argc, char *argv[])
         }
 //        if (_control_state_sub < 0)
 //            _control_state_sub  = orb_subscribe(ORB_ID(control_state));
+        orb_check(gcs_to_formation_sub, &gcs_to_formation_update);   //领航无人机经纬高
+        if(gcs_to_formation_update)
+        {
+            orb_copy(ORB_ID(ui_strive_gcs_to_formation), gcs_to_formation_sub, &gcs_to_formation);
+            PX4_INFO("gcs_to_formation.lat:%.7f", gcs_to_formation.lat);
+        }
+
+        orb_check(vehicle_status_sub , &vehicle_status_update);
+        if(vehicle_status_update)
+        {
+            orb_copy(ORB_ID(vehicle_global_position), vehicle_status_sub, &vehicle_status);
+            PX4_INFO("vehicle_global_position: %.7f, %.7f, %.2f", vehicle_status.lat, vehicle_status.lon, (double)vehicle_status.alt);
+        }
+
+
         orb_check(_control_state_sub , &_control_state_update);
         PX4_INFO("_control_state_update :%d",_control_state_update);
 
@@ -350,61 +373,60 @@ int vision_sensor_thread_main(int argc, char *argv[])
 //        vision_sensor_BODY.vision_x = 0.17f;
 //        vision_sensor_BODY.vision_y = -0.16f;
 //        vision_sensor_BODY.vision_z = 0.95f;
-       vision_sensor_NED.vision_x = vision_sensor_BODY.vision_x * R(0,0)
-                                  + vision_sensor_BODY.vision_y * R(0,1)
-                                  + vision_sensor_BODY.vision_z * R(0,2);
-
-       vision_sensor_NED.vision_y = vision_sensor_BODY.vision_x * R(1,0)
-                                  + vision_sensor_BODY.vision_y * R(1,1)
-                                  + vision_sensor_BODY.vision_z * R(1,2);
-
-       vision_sensor_NED.vision_z = vision_sensor_BODY.vision_x * R(2,0)
-                                  + vision_sensor_BODY.vision_y * R(2,1)
-                                  + vision_sensor_BODY.vision_z * R(2,2);
-///
-       vision_sensor_NED.vision_vx = vision_sensor_BODY.vision_vx * R(0,0)
-                                   + vision_sensor_BODY.vision_vy * R(0,1)
-                                   + vision_sensor_BODY.vision_vz * R(0,2);
-
-       vision_sensor_NED.vision_vy = vision_sensor_BODY.vision_vx * R(1,0)
-                                   + vision_sensor_BODY.vision_vy * R(1,1)
-                                   + vision_sensor_BODY.vision_vz * R(1,2);
-
-       vision_sensor_NED.vision_vz = vision_sensor_BODY.vision_vx * R(2,0)
-                                   + vision_sensor_BODY.vision_vy * R(2,1)
-                                   + vision_sensor_BODY.vision_vz * R(2,2);
-       vision_sensor_NED.status = vision_sensor_BODY.status;
-
-       orb_publish(ORB_ID(vision_sensor), vision_sensor_pub_fd , &vision_sensor_NED);
-       PX4_INFO("vision_sensor_NED: %.2f, %.2f, %.2f",(double)vision_sensor_NED.vision_x,(double)vision_sensor_NED.vision_y,(double)vision_sensor_NED.vision_z);
-       mavlink_log_info(&mavlink_log_pub, "vision_sensor_NED: %.2f, %.2f, %.2f",(double)vision_sensor_NED.vision_x,(double)vision_sensor_NED.vision_y,(double)vision_sensor_NED.vision_z);
-       PX4_INFO("vision_sensor_BODY: %.2f, %.2f, %.2f",(double)vision_sensor_BODY.vision_x,(double)vision_sensor_BODY.vision_y,(double)vision_sensor_BODY.vision_z);
-       mavlink_log_info(&mavlink_log_pub, "vision_sensor_BODY: %.2f, %.2f, %.2f",(double)vision_sensor_BODY.vision_x,(double)vision_sensor_BODY.vision_y,(double)vision_sensor_BODY.vision_z);
-//       if (vehicle_status_sub < 0)
-//           vehicle_status_sub  = orb_subscribe(ORB_ID(vehicle_global_position));
-       orb_check(vehicle_status_sub , &vehicle_status_update);
-       if(vehicle_status_update)
+       if(vision_sensor_NED.status == 4)
        {
-           orb_copy(ORB_ID(vehicle_global_position), vehicle_status_sub, &vehicle_status);
-           PX4_INFO("vehicle_global_position: %.7f, %.7f, %.2f", vehicle_status.lat, vehicle_status.lon, (double)vehicle_status.alt);
+           vision_sensor_NED.vision_x = vision_sensor_BODY.vision_x * R(0,0)
+                                      + vision_sensor_BODY.vision_y * R(0,1)
+                                      + vision_sensor_BODY.vision_z * R(0,2);
+
+           vision_sensor_NED.vision_y = vision_sensor_BODY.vision_x * R(1,0)
+                                      + vision_sensor_BODY.vision_y * R(1,1)
+                                      + vision_sensor_BODY.vision_z * R(1,2);
+
+           vision_sensor_NED.vision_z = vision_sensor_BODY.vision_x * R(2,0)
+                                      + vision_sensor_BODY.vision_y * R(2,1)
+                                      + vision_sensor_BODY.vision_z * R(2,2);
+    ///
+           vision_sensor_NED.vision_vx = vision_sensor_BODY.vision_vx * R(0,0)
+                                       + vision_sensor_BODY.vision_vy * R(0,1)
+                                       + vision_sensor_BODY.vision_vz * R(0,2);
+
+           vision_sensor_NED.vision_vy = vision_sensor_BODY.vision_vx * R(1,0)
+                                       + vision_sensor_BODY.vision_vy * R(1,1)
+                                       + vision_sensor_BODY.vision_vz * R(1,2);
+
+           vision_sensor_NED.vision_vz = vision_sensor_BODY.vision_vx * R(2,0)
+                                       + vision_sensor_BODY.vision_vy * R(2,1)
+                                       + vision_sensor_BODY.vision_vz * R(2,2);
+           vision_sensor_NED.status = vision_sensor_BODY.status;
+
+           orb_publish(ORB_ID(vision_sensor), vision_sensor_pub_fd , &vision_sensor_NED);
+           PX4_INFO("vision_sensor_NED: %.2f, %.2f, %.2f",(double)vision_sensor_NED.vision_x,(double)vision_sensor_NED.vision_y,(double)vision_sensor_NED.vision_z);
+           mavlink_log_info(&mavlink_log_pub, "vision_sensor_NED: %.2f, %.2f, %.2f",(double)vision_sensor_NED.vision_x,(double)vision_sensor_NED.vision_y,(double)vision_sensor_NED.vision_z);
+           PX4_INFO("vision_sensor_BODY: %.2f, %.2f, %.2f",(double)vision_sensor_BODY.vision_x,(double)vision_sensor_BODY.vision_y,(double)vision_sensor_BODY.vision_z);
+           mavlink_log_info(&mavlink_log_pub, "vision_sensor_BODY: %.2f, %.2f, %.2f",(double)vision_sensor_BODY.vision_x,(double)vision_sensor_BODY.vision_y,(double)vision_sensor_BODY.vision_z);
+    //       if (vehicle_status_sub < 0)
+    //           vehicle_status_sub  = orb_subscribe(ORB_ID(vehicle_global_position));
+           own_stat.timestamp = hrt_absolute_time();
+           map_projection_init(&own_ref,  vehicle_status.lat, vehicle_status.lon);
+           map_projection_reproject(&own_ref, vision_sensor_NED.vision_x, vision_sensor_NED.vision_y,
+                                    &own_stat.lat, &own_stat.lon);
+           own_stat.alt = vehicle_status.alt + vision_sensor_NED.vision_z;
+           own_stat.vel_e = vehicle_status.vel_e + vision_sensor_NED.vision_vx;
+           own_stat.vel_n = vehicle_status.vel_n + vision_sensor_NED.vision_vy;
+           own_stat.vel_d = vehicle_status.vel_d + vision_sensor_NED.vision_vz;
+       //    own_stat.yaw =  vehicle_status.yaw;
        }
-       map_projection_init(&own_ref,  vehicle_status.lat, vehicle_status.lon);
-       map_projection_reproject(&own_ref, vision_sensor_NED.vision_x, vision_sensor_NED.vision_y,
-                                &own_stat.lat, &own_stat.lon);
-       own_stat.alt = vehicle_status.alt + vision_sensor_NED.vision_z;
-       own_stat.vel_e = vehicle_status.vel_e + vision_sensor_NED.vision_vx;
-       own_stat.vel_n = vehicle_status.vel_n + vision_sensor_NED.vision_vy;
-       own_stat.vel_d = vehicle_status.vel_d + vision_sensor_NED.vision_vz;
-       own_stat.yaw =  vehicle_status.yaw;
-       if(vision_sensor_NED.status == true)
+       else
        {
-//           orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
+           own_stat.timestamp = hrt_absolute_time();
+           own_stat.lat = gcs_to_formation.lat;
+           own_stat.lon = gcs_to_formation.lon;
+           own_stat.alt = gcs_to_formation.alt;
        }
 
-//       if (home_pos_tag_sub < 0)
-//       {
-//            home_pos_tag_sub  = orb_subscribe(ORB_ID(home_position));
-//       }
+
+
        bool _home_pos_update;
        orb_check(home_pos_tag_sub , &_home_pos_update);
   //     PX4_INFO("_home_pos_update :%d", _home_pos_update);
