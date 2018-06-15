@@ -56,9 +56,6 @@
 #include <uORB/topics/ui_strive_formation.h>
 
 #include <uORB/topics/ui_strive_formation_status.h>
-
-#define MC_ID 2      //本机的ID号（1、2、3、4）
-
 #include <v2.0/mavlink_types.h>
 
 #endif

@@ -125,7 +125,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vtol_vehicle_status.h>
-
+#include <v2.0/mavlink_types.h>
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_formation_status.h>
@@ -258,14 +258,16 @@ bool plan_time_flag = false;
 #endif
 
 #ifdef UI_STRIVE
-    ui_strive_formation_s formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
-    int _formation_sub1;
-    int _formation_sub2;
-    int _formation_sub3;
-    int _formation_sub4;
+    ui_strive_formation_s formation ,formation1 ; //formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
+    int _formation_sub;
+//    int _formation_sub1;
+//    int _formation_sub2;
+//    int _formation_sub3;
+//    int _formation_sub4;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
     ui_strive_formation_status_s formation_status;
 #endif
+    extern mavlink_system_t mavlink_system;
 #ifdef RECEIVE_STATUS
 follow_to_commander_s return_flag = {};
 int return_flag_sub = -1;
@@ -1817,35 +1819,42 @@ int commander_thread_main(int argc, char *argv[])
 	pthread_attr_destroy(&commander_low_prio_attr);
 
 #ifdef UI_STRIVE
-    _formation_sub1 = -1;
-    _formation_sub2 = -1;
-    _formation_sub3 = -1;
-    _formation_sub4 = -1;
+    _formation_sub = -1;
+
+//    _formation_sub1 = -1;
+//    _formation_sub2 = -1;
+//    _formation_sub3 = -1;
+//    _formation_sub4 = -1;
     _formation_status_pub = nullptr;
 #endif
 #ifdef UI_STRIVE
-    memset(&formation1, 0, sizeof(formation1));
-    memset(&formation2, 0, sizeof(formation2));
-    memset(&formation3, 0, sizeof(formation3));
-    memset(&formation4, 0, sizeof(formation4));
+
+      memset(&formation, 0, sizeof(formation));
+      memset(&formation1, 0, sizeof(formation1));
+//    memset(&formation2, 0, sizeof(formation2));
+//    memset(&formation3, 0, sizeof(formation3));
+//    memset(&formation4, 0, sizeof(formation4));
     memset(&formation_status, 0, sizeof(formation_status));
 #endif
 
 
 
 #ifdef UI_STRIVE
-    if (_formation_sub1 < 0) {
-        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
+    if (_formation_sub < 0) {
+        _formation_sub = orb_subscribe(ORB_ID(ui_strive_formation));
     }
-    if (_formation_sub2 < 0) {
-        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
-    }
-    if (_formation_sub3 < 0) {
-        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
-    }
-    if (_formation_sub4 < 0) {
-        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
-    }
+//    if (_formation_sub1 < 0) {
+//        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
+//    }
+//    if (_formation_sub2 < 0) {
+//        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
+//    }
+//    if (_formation_sub3 < 0) {
+//        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
+//    }
+//    if (_formation_sub4 < 0) {
+//        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
+//    }
 #endif
 #ifdef RECEIVE_STATUS
     if(return_flag_sub < 0)
@@ -1859,42 +1868,20 @@ int commander_thread_main(int argc, char *argv[])
 
 		arming_ret = TRANSITION_NOT_CHANGED;
 #ifdef UI_STRIVE
-        orb_check(_formation_sub1, &updated);
+        orb_check(_formation_sub, &updated);
         if(updated)
         {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub1, &formation1);
-            PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
-        }
-        orb_check(_formation_sub2, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub2, &formation2);
-            PX4_INFO("foramtion2.lat:%.7f", formation2.lat);
-        }
-        orb_check(_formation_sub3, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub3, &formation3);
-            PX4_INFO("foramtion3.lat:%.7f", formation3.lat);
-        }
-        orb_check(_formation_sub4, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub4, &formation4);
-            PX4_INFO("foramtion4.lat:%.7f", formation4.lat);
-        }
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub, &formation);
+             if(formation.sysid == 1)
+             {
+                 formation1 = formation;
+
+             }
 //
-        if(MC_ID == 2)
-        {
-            formation_status.status = formation1.status;
-        }
-        if(MC_ID == 3)
-        {
-            formation_status.status = formation2.status;
-        }
-        if(MC_ID == 4)
-        {
-            formation_status.status = formation3.status;
+            if(mavlink_system.sysid == formation.sysid + 1)
+            {
+                formation_status.status = formation.status;
+            }
         }
     #endif
 
@@ -2867,7 +2854,7 @@ int commander_thread_main(int argc, char *argv[])
 
 			/* check throttle kill switch */
 #ifdef emergency_stop
-            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON ||(MC_ID != 1 && formation1.kill == 1)) {
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON ||(mavlink_system.sysid != 1 && formation1.kill == 1)) {
 #else
             if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 #endif
@@ -2878,7 +2865,7 @@ int commander_thread_main(int argc, char *argv[])
 				}
 				armed.lockdown = true;
 #ifdef emergency_stop
-            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF && (MC_ID == 1 || formation1.kill == 0)) {
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF && (mavlink_system.sysid == 1 || formation1.kill == 0)) {
 #else
             } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {
 #endif
@@ -3114,7 +3101,8 @@ int commander_thread_main(int argc, char *argv[])
 
 #endif
 #ifdef CHANGE_STATE
-        if( (MC_ID != 1 || sp_man.aux1 > 0.5f) && (MC_ID == 1 || formation1.status == 1))
+        followtarget_time = 10e6 * mavlink_system.sysid;
+        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) && (mavlink_system.sysid == 1 || formation1.status == 1))
         {
            // PX4_INFO("sp_man.aux1 > 0.5f");
             if(plan_time_flag == false)

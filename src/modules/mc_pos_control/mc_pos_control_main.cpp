@@ -688,7 +688,7 @@ MulticopterPositionControl::poll_subscriptions()
 
 		/* get current rotation matrix and euler angles from control state quaternions */
 		math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
-		_R = q_att.to_dcm();
+        _R = q_att.to_dcm();
 		math::Vector<3> euler_angles;
 		euler_angles = _R.to_euler();
 		_yaw = euler_angles(2);

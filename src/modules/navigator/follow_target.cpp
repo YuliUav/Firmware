@@ -193,7 +193,7 @@ void FollowTarget::on_active()
 {
 //    mavlink_log_info(&mavlink_log_pub, "follow target on active1");
 //    usleep(10000);
-//    mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
+ //   mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
 
     struct map_projection_reference_s target_ref;
     math::Vector<3> target_reported_velocity(0, 0, 0);
@@ -222,19 +222,22 @@ void FollowTarget::on_active()
         orb_copy(ORB_ID(ui_strive_formation), _formation_sub, &formation);
         PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
     }
-
-    if(MC_ID == 2)
+    if(mavlink_system.sysid == formation.sysid + 1)
     {
         last_rtl = formation.status == 12;
     }
-    if(MC_ID == 3)
-    {
-        last_rtl = formation.status == 12;
-    }
-    if(MC_ID == 4)
-    {
-        last_rtl = formation.status == 12;
-    }
+//    if(MC_ID == 2)
+//    {
+//        last_rtl = formation.status == 12;
+//    }
+//    if(MC_ID == 3)
+//    {
+//        last_rtl = formation.status == 12;
+//    }
+//    if(MC_ID == 4)
+//    {
+//        last_rtl = formation.status == 12;
+ //   }
 #endif
 
      orb_check(manual_control_lastrtl_sub, &updated);
@@ -436,7 +439,7 @@ void FollowTarget::on_active()
             {
                 mavlink_log_info(&mavlink_log_pub, "case 0");
                 if((_target_position_offset + _target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
-                        && (last_rtl || MC_ID == 1||manual_control_lastrtl.aux2 > 0.5f)
+                        && (last_rtl || mavlink_system.sysid == 1||manual_control_lastrtl.aux2 > 0.5f)
                         &&  sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) < 1000.0)
                 {
                    // set_offset(10.0f,0.0f);

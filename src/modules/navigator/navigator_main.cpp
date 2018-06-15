@@ -408,7 +408,7 @@ Navigator::task_main()
             }
         }
 
-		perf_begin(_loop_perf);
+        perf_begin(_loop_perf);
 
 		bool updated;
 
@@ -470,7 +470,7 @@ Navigator::task_main()
 //        {
 //            heli_pos_update();
 //        }
-//		orb_check(_vehicle_command_sub, &updated);
+        orb_check(_vehicle_command_sub, &updated);
 
         if (updated) {
 			vehicle_command_s cmd;
@@ -688,7 +688,7 @@ Navigator::task_main()
         /* run follow target mode, only for test!*/
         _navigation_mode_array[9]->run(true);
 #else
-		for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
+        for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
             _navigation_mode_array[i]->run(_navigation_mode == _navigation_mode_array[i]);
             if(_navigation_mode == _navigation_mode_array[i])
             {
@@ -703,10 +703,9 @@ Navigator::task_main()
                     PX4_INFO("rtl");
                 }
 
-
             }
 
-		}
+        }
 #endif
 		/* if nothing is running, set position setpoint triplet invalid once */
 		if (_navigation_mode == nullptr && !_pos_sp_triplet_published_invalid_once) {
@@ -729,7 +728,7 @@ Navigator::task_main()
 			_mission_result_updated = false;
 		}
 
-		perf_end(_loop_perf);
+        perf_end(_loop_perf);
 	}
 	PX4_INFO("exiting");
 
