@@ -688,7 +688,7 @@ MulticopterPositionControl::poll_subscriptions()
 
 		/* get current rotation matrix and euler angles from control state quaternions */
 		math::Quaternion q_att(_ctrl_state.q[0], _ctrl_state.q[1], _ctrl_state.q[2], _ctrl_state.q[3]);
-		_R = q_att.to_dcm();
+        _R = q_att.to_dcm();
 		math::Vector<3> euler_angles;
 		euler_angles = _R.to_euler();
 		_yaw = euler_angles(2);
@@ -996,7 +996,7 @@ MulticopterPositionControl::control_manual(float dt)
 			_vel_sp(2) = req_vel_sp_scaled(2);
 		}
 	}
-#ifdef test
+#ifdef test0
     if(_manual.aux2 > 0.5f)
     {
 
@@ -1026,8 +1026,20 @@ MulticopterPositionControl::control_manual(float dt)
     else
     {
         first_set_sp = true;
+        second_set_sp = false;
     }
 #endif
+#ifdef test0
+    if(_manual.aux2 > 0.5f)
+    {
+        _pos_sp = _pos1;
+    }
+    if(_manual.aux2 > -0.5f && _manual.aux2 < 0.5f)
+    {
+        _pos_sp = _pos2;
+    }
+#endif
+
 }
 
 void
@@ -1388,8 +1400,8 @@ MulticopterPositionControl::task_main()
 	bool was_armed = false;
 
 #ifdef test
-    _pos1 = {5.0f,-10.0f,-5.0f};
-    _pos2 = {5.0f,10.0f,-5.0f};
+    _pos1 = {10.0f,-10.0f,-5.0f};
+    _pos2 = {10.0f,10.0f,-5.0f};
 #endif
 	hrt_abstime t_prev = 0;
 
