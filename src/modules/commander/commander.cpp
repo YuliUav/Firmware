@@ -45,14 +45,14 @@
  */
 
 #define  CHANGE_STATE //yuli
-//#define UI_STRIVE
+#define UI_STRIVE
 #include <cmath>	// NAN
 
 #ifdef  CHANGE_STATE
 #include <drivers/drv_hrt.h>
-//#define MC_ID 4      //本机的ID号（1、2、3、4）
+#define MC_ID 1      //本机的ID号（1、2、3、4）
 #endif
-
+#define emergency_stop
 #define RECEIVE_STATUS
 /* commander module headers */
 #include "accelerometer_calibration.h"
@@ -125,7 +125,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vtol_vehicle_status.h>
-
+#include <v2.0/mavlink_types.h>
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_formation_status.h>
@@ -137,7 +137,6 @@
 #ifdef RECEIVE_STATUS
 #include <uORB/topics/follow_to_commander.h>
 #endif
-
 
 typedef enum VEHICLE_MODE_FLAG
 {
@@ -249,24 +248,26 @@ static bool can_arm_without_gps = false;
 #ifdef CHANGE_STATE
 hrt_abstime task_planning_time = 0;
 hrt_abstime task_start_time = 0;
-hrt_abstime takeoff_time = 10e6;
+hrt_abstime takeoff_time = 2e6;
 hrt_abstime followtarget_time = 10e6;
 hrt_abstime catch_time = 15e6;
 hrt_abstime docked_time = 20e6;
 hrt_abstime pos_ctl_time = 25e6;
-hrt_abstime return_time = 30e6;
+hrt_abstime return_time = 300e6;
 bool plan_time_flag = false;
 #endif
 
 #ifdef UI_STRIVE
-    ui_strive_formation_s formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
-    int _formation_sub1;
-    int _formation_sub2;
-    int _formation_sub3;
-    int _formation_sub4;
+    ui_strive_formation_s formation ,formation1 ; //formation1, formation2, formation3, formation4;  //data from 4 different vehicles    *****zjm
+    int _formation_sub;
+//    int _formation_sub1;
+//    int _formation_sub2;
+//    int _formation_sub3;
+//    int _formation_sub4;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
     ui_strive_formation_status_s formation_status;
 #endif
+    extern mavlink_system_t mavlink_system;
 #ifdef RECEIVE_STATUS
 follow_to_commander_s return_flag = {};
 int return_flag_sub = -1;
@@ -1326,11 +1327,12 @@ static void commander_set_home_position(orb_advert_t &homePub, home_position_s &
 	matrix::Eulerf euler = matrix::Quatf(attitude.q);
 	home.yaw = euler.psi();
 
-    //PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
+    PX4_INFO("home: %.7f, %.7f, %.2f", home.lat, home.lon, (double)home.alt);
 
 	/* announce new home position */
 	if (homePub != nullptr) {
 		orb_publish(ORB_ID(home_position), homePub, &home);
+        PX4_INFO("orb_publish(ORB_ID(home_position)");
 
 	} else {
 		homePub = orb_advertise(ORB_ID(home_position), &home);
@@ -1817,35 +1819,42 @@ int commander_thread_main(int argc, char *argv[])
 	pthread_attr_destroy(&commander_low_prio_attr);
 
 #ifdef UI_STRIVE
-    _formation_sub1 = -1;
-    _formation_sub2 = -1;
-    _formation_sub3 = -1;
-    _formation_sub4 = -1;
+    _formation_sub = -1;
+
+//    _formation_sub1 = -1;
+//    _formation_sub2 = -1;
+//    _formation_sub3 = -1;
+//    _formation_sub4 = -1;
     _formation_status_pub = nullptr;
 #endif
 #ifdef UI_STRIVE
-    memset(&formation1, 0, sizeof(formation1));
-    memset(&formation2, 0, sizeof(formation2));
-    memset(&formation3, 0, sizeof(formation3));
-    memset(&formation4, 0, sizeof(formation4));
+
+      memset(&formation, 0, sizeof(formation));
+      memset(&formation1, 0, sizeof(formation1));
+//    memset(&formation2, 0, sizeof(formation2));
+//    memset(&formation3, 0, sizeof(formation3));
+//    memset(&formation4, 0, sizeof(formation4));
     memset(&formation_status, 0, sizeof(formation_status));
 #endif
 
 
 
 #ifdef UI_STRIVE
-    if (_formation_sub1 < 0) {
-        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
+    if (_formation_sub < 0) {
+        _formation_sub = orb_subscribe(ORB_ID(ui_strive_formation));
     }
-    if (_formation_sub2 < 0) {
-        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
-    }
-    if (_formation_sub3 < 0) {
-        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
-    }
-    if (_formation_sub4 < 0) {
-        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
-    }
+//    if (_formation_sub1 < 0) {
+//        _formation_sub1 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_1);
+//    }
+//    if (_formation_sub2 < 0) {
+//        _formation_sub2 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_2);
+//    }
+//    if (_formation_sub3 < 0) {
+//        _formation_sub3 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_3);
+//    }
+//    if (_formation_sub4 < 0) {
+//        _formation_sub4 = orb_subscribe_multi(ORB_ID(ui_strive_formation), Instance_MC_4);
+//    }
 #endif
 #ifdef RECEIVE_STATUS
     if(return_flag_sub < 0)
@@ -1859,42 +1868,20 @@ int commander_thread_main(int argc, char *argv[])
 
 		arming_ret = TRANSITION_NOT_CHANGED;
 #ifdef UI_STRIVE
-        orb_check(_formation_sub1, &updated);
+        orb_check(_formation_sub, &updated);
         if(updated)
         {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub1, &formation1);
-            PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
-        }
-        orb_check(_formation_sub2, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub2, &formation2);
-            PX4_INFO("foramtion2.lat:%.7f", formation2.lat);
-        }
-        orb_check(_formation_sub3, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub3, &formation3);
-            PX4_INFO("foramtion3.lat:%.7f", formation3.lat);
-        }
-        orb_check(_formation_sub4, &updated);
-        if(updated)
-        {
-            orb_copy(ORB_ID(ui_strive_formation), _formation_sub4, &formation4);
-            PX4_INFO("foramtion4.lat:%.7f", formation4.lat);
-        }
+            orb_copy(ORB_ID(ui_strive_formation), _formation_sub, &formation);
+             if(formation.sysid == 1)
+             {
+                 formation1 = formation;
+
+             }
 //
-        if(MC_ID == 2)
-        {
-            formation_status.status = formation1.status;
-        }
-        if(MC_ID == 3)
-        {
-            formation_status.status = formation2.status;
-        }
-        if(MC_ID == 4)
-        {
-            formation_status.status = formation3.status;
+            if(mavlink_system.sysid == formation.sysid + 1)
+            {
+                formation_status.status = formation.status;
+            }
         }
     #endif
 
@@ -2866,14 +2853,23 @@ int commander_thread_main(int argc, char *argv[])
 			}
 
 			/* check throttle kill switch */
-			if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+#ifdef emergency_stop
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON ||(mavlink_system.sysid != 1 && formation1.kill == 1)) {
+#else
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+#endif
+
 				/* set lockdown flag */
 				if (!armed.lockdown) {
 					mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH ENGAGED");
 				}
 				armed.lockdown = true;
-			} else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {
-				if (armed.lockdown) {
+#ifdef emergency_stop
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF && (mavlink_system.sysid == 1 || formation1.kill == 0)) {
+#else
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF) {
+#endif
+                if (armed.lockdown) {
 					mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH OFF");
 				}
 				armed.lockdown = false;
@@ -3073,12 +3069,14 @@ int commander_thread_main(int argc, char *argv[])
 
 		/* First time home position update - but only if disarmed */
 		if (!status_flags.condition_home_position_valid && !armed.armed) {
+            PX4_INFO("First time home position update ");
 			commander_set_home_position(home_pub, _home, local_position, global_position, attitude);
 		}
 
 		/* update home position on arming if at least 500 ms from commander start spent to avoid setting home on in-air restart */
 		else if (((!was_armed && armed.armed) || (was_landed && !land_detector.landed)) &&
 			(now > commander_boot_timestamp + INAIR_RESTART_HOLDOFF_INTERVAL)) {
+            PX4_INFO("update home position on arming  ");
 			commander_set_home_position(home_pub, _home, local_position, global_position, attitude);
 		}
 
@@ -3103,7 +3101,9 @@ int commander_thread_main(int argc, char *argv[])
 
 #endif
 #ifdef CHANGE_STATE
-        if(sp_man.aux1 > 0.5f)
+        PX4_INFO("formation1.status :%d",formation1.status);
+        followtarget_time = 10e6 * (hrt_abstime)mavlink_system.sysid;
+        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) && (mavlink_system.sysid == 1 || formation1.status == 5 ||formation1.status == 12 ||formation1.status == 10))
         {
            // PX4_INFO("sp_man.aux1 > 0.5f");
             if(plan_time_flag == false)
