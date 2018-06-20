@@ -3101,8 +3101,9 @@ int commander_thread_main(int argc, char *argv[])
 
 #endif
 #ifdef CHANGE_STATE
-        followtarget_time = 10e6 * mavlink_system.sysid;
-        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) && (mavlink_system.sysid == 1 || formation1.status == 1))
+        PX4_INFO("formation1.status :%d",formation1.status);
+        followtarget_time = 10e6 * (hrt_abstime)mavlink_system.sysid;
+        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) && (mavlink_system.sysid == 1 || formation1.status == 5 ||formation1.status == 12 ||formation1.status == 10))
         {
            // PX4_INFO("sp_man.aux1 > 0.5f");
             if(plan_time_flag == false)
