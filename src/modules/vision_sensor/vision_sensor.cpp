@@ -42,16 +42,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <px4_config.h>
 #include <nuttx/sched.h>
-
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 #include <lib/geo/geo.h>
-
-//
-
 #include <fcntl.h>
 #include <termios.h>
 #include <math.h>
@@ -65,15 +60,9 @@
 #include <uORB/topics/vision_sensor.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/targ_heli.h>
-
-
-//#include <v1.0/heli_msg/common/mavlink.h>
-//#include <v1.0/heli_msg/mavlink_helpers.h>
-//#include <v2.0/common/mavlink_msg_vision_data.h>
 #include <v2.0/common/mavlink.h>
-//#include <v2.0/mavlink_helpers.h>
-
 #define BUFFERSIZE 128
+
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int vision_sensor_task;				/**< Handle of daemon task / thread */

@@ -86,7 +86,6 @@ FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     second_arrive_time(0),
     second_arrive(true),
     target_altitude(0.0f),
-
     #endif
 
     #ifdef UI_STRIVE
@@ -185,15 +184,11 @@ void FollowTarget::on_activation()
     {
         home_position_sub = orb_subscribe(ORB_ID(home_position));
     }
-
-
 #endif
 }
 
 void FollowTarget::on_active()
 {
-//    mavlink_log_info(&mavlink_log_pub, "follow target on active1");
-//    usleep(10000);
 //    mavlink_log_info(&mavlink_log_pub, "system id:%d", mavlink_system.sysid);
 
     struct map_projection_reference_s target_ref;
@@ -205,7 +200,6 @@ void FollowTarget::on_active()
     bool updated = false;
     float dt_ms = 0;
     bool climb_finished = false;
-    // orb_check(_follow_target_sub, &updated);
 
 #ifdef HOME_POSTION
     orb_check(home_position_sub, &updated);
@@ -229,15 +223,16 @@ void FollowTarget::on_active()
         orb_copy(ORB_ID(ui_strive_gcs_to_formation), _gcs_to_formation_sub, &gcs_to_formation);
         PX4_INFO("gcs_to_formation.lat:%.7f", gcs_to_formation.lat);
     }
-    if(MC_ID == 2)
+    if(mavlink_system.sysid == 2)
+    {
+        if(formation.sysid == 1)
+            last_rtl = formation.status == commander_state_s::MAIN_STATE_AUTO_FOLLOW_TARGET;//12
+    }
+    if(mavlink_system.sysid == 3)
     {
         last_rtl = formation.status == 12;
     }
-    if(MC_ID == 3)
-    {
-        last_rtl = formation.status == 12;
-    }
-    if(MC_ID == 4)
+    if(mavlink_system.sysid == 4)
     {
         last_rtl = formation.status == 12;
     }
@@ -285,65 +280,65 @@ void FollowTarget::on_active()
         #ifdef AUTOTEST
                // follow_targ = orb_advertise(ORB_ID(follow_target), &target_motion);
 
-                        if ((_target_distance).length() < 0.1f )
-                        {
-                            if(first_arrive == true)
-                            {
-                                 arrive_time = hrt_absolute_time();
-                                 first_arrive = false;
-                            }
+                 if ((_target_distance).length() < 0.1f )
+                 {
+                     if(first_arrive == true)
+                     {
+                         arrive_time = hrt_absolute_time();
+                         first_arrive = false;
+                     }
 
-                            if(hrt_elapsed_time(&arrive_time) > 10)
-                            {
-                                // _param_min_alt.set(0.0f);
-                                 _heli_follow_result.surely_arrive = true;
-                             //    mavlink_log_info(&mavlink_log_pub, "target_motion.surely_arrive = true");
-                            }
-                        }
-                        else
-                        {
-                            first_arrive = true;
-                            _heli_follow_result.surely_arrive = false;
-                        }
+                     if(hrt_elapsed_time(&arrive_time) > 10)
+                     {
+                         // _param_min_alt.set(0.0f);
+                         _heli_follow_result.surely_arrive = true;
+                         //    mavlink_log_info(&mavlink_log_pub, "target_motion.surely_arrive = true");
+                     }
+                 }
+                 else
+                 {
+                     first_arrive = true;
+                     _heli_follow_result.surely_arrive = false;
+                 }
 
-        //                if(target_motion.vz < -0.01f)
-        //                {
-        //                    vel_d_flag = true;
-        //                }
+                 //                if(target_motion.vz < -0.01f)
+                 //                {
+                 //                    vel_d_flag = true;
+                 //                }
 #ifdef SET_OFFSET
-                        if ( climb_finished == true && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 0.15  && (_target_distance).length() < 0.1f)
+                 if ( climb_finished == true && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 0.15  && (_target_distance).length() < 0.1f)
 #else
-                        if ( climb_finished == true && fabs(_current_target_motion.alt + _param_min_alt.get() - _navigator->get_global_position()->alt) < 0.15  && (_target_distance).length() < 0.1f)
+                 if ( climb_finished == true && fabs(_current_target_motion.alt + _param_min_alt.get() - _navigator->get_global_position()->alt) < 0.15  && (_target_distance).length() < 0.1f)
 #endif
-                        {
-                            if(second_arrive == true)
-                            {
-                                 second_arrive_time = hrt_absolute_time();
-                                 second_arrive = false;
-                            }
+                 {
+                     if(second_arrive == true)
+                     {
+                         second_arrive_time = hrt_absolute_time();
+                         second_arrive = false;
+                     }
 
-                            if(hrt_elapsed_time(&second_arrive_time) > 10)
-                            {
-                                 _heli_follow_result.finally_arrive = true;
-                                 mavlink_log_info(&mavlink_log_pub, "target_motion.finally_arrive = true");
-                            }
-                        }
-                        else
-                        {
-                            second_arrive = true;
-                            _heli_follow_result.finally_arrive = false;
-                        }
-                    //    mavlink_log_info(&mavlink_log_pub, "_param_min:%.3f,target_motion:%.3f",(double)_param_min_alt.get(),(double)target_motion.param_min_alt);
-                        if ( _heli_followtarg_pub != nullptr)
-                        {
-                            orb_publish(ORB_ID(heli_followtarg),  _heli_followtarg_pub, &_heli_follow_result);
+                     if(hrt_elapsed_time(&second_arrive_time) > 10)
+                     {
+                         _heli_follow_result.finally_arrive = true;
+                         mavlink_log_info(&mavlink_log_pub, "target_motion.finally_arrive = true");
+                     }
+                 }
+                 else
+                 {
+                     second_arrive = true;
+                     _heli_follow_result.finally_arrive = false;
+                 }
+                 //    mavlink_log_info(&mavlink_log_pub, "_param_min:%.3f,target_motion:%.3f",(double)_param_min_alt.get(),(double)target_motion.param_min_alt);
+                 if ( _heli_followtarg_pub != nullptr)
+                 {
+                     orb_publish(ORB_ID(heli_followtarg),  _heli_followtarg_pub, &_heli_follow_result);
 
-                        } else
-                        {
-                           _heli_followtarg_pub = orb_advertise(ORB_ID(heli_followtarg), &_heli_follow_result);
-                        }
+                 } else
+                 {
+                     _heli_followtarg_pub = orb_advertise(ORB_ID(heli_followtarg), &_heli_follow_result);
+                 }
 
-                       // orb_publish(ORB_ID(heli_followtarg),  _heli_followtarg_pub, &_heli_follow_result);
+                 // orb_publish(ORB_ID(heli_followtarg),  _heli_followtarg_pub, &_heli_follow_result);
 
 
         #endif
@@ -372,8 +367,6 @@ void FollowTarget::on_active()
                     target_reported_velocity(0) = _est_target_vel(0);
                     target_reported_velocity(1) = _est_target_vel(1);
                 }
-                target_reported_velocity(0) = _est_target_vel(0);
-                target_reported_velocity(1) = _est_target_vel(1);
 //×××××××××××××××××××××××××××××××××××××××××//
 
     }
@@ -396,10 +389,9 @@ void FollowTarget::on_active()
     }
 
     // update target velocity
- // mavlink_log_info(&mavlink_log_pub, "follow target on active2");
+    // mavlink_log_info(&mavlink_log_pub, "follow target on active2");
     if (target_velocity_valid() && updated) {
         dt_ms = ((_current_target_motion.timestamp - _previous_target_motion.timestamp) / 1000);
-//        PX4_INFO("valid & updated");
         // ignore a small dt
         if (dt_ms > 10.0F) {
 
@@ -425,98 +417,92 @@ void FollowTarget::on_active()
 //                 follow_state = 3;
 
 //            }
-
-
             switch (follow_state)
             {
-            case 0:
-            {
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
-                        && (last_rtl || MC_ID == 1)
-                        &&  sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) < 1000.0)
+                case 0:
                 {
-                    set_offset(10.0f,0.0f);
-                    follow_state = 1;//从准备区到视觉区
-                }
-            }
-
-            case 1:
-            {
-                if( (_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0  )
-                {
-                     set_offset(5.0f,0.0f);
-                     follow_state = 2;//向mark点接近
-                    if(vision_time_start == false)
+                    if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0
+                            && (last_rtl || MC_ID == 1)
+                            &&  sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) < 1000.0)
                     {
-                        vision_time_start = true;
-                        vision_time = hrt_absolute_time();
+                        set_offset(10.0f,0.0f);
+                        follow_state = 1;//从准备区到视觉区
+                    }
+                }
+
+                case 1:
+                {
+                    if( (_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0  )
+                    {
+                         set_offset(5.0f,0.0f);
+                         follow_state = 2;//向mark点接近
+                        if(vision_time_start == false)
+                        {
+                            vision_time_start = true;
+                            vision_time = hrt_absolute_time();
+                        }
+                     }
+                     if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
+                     {
+                         rtl_status.status = commander_state_s::MAIN_STATE_AUTO_RTL;//5
+                     }
+
+                    if(sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) > 1000.0)
+                    {
+                        follow_state = 10;
+                        vision_time_start = false;
                     }
 
-                 }
-                 if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
-                 {
-                     rtl_status.status = 5;
-                 }
-
-
-
-                if(sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) > 1000.0)
-                {
-                    follow_state = 10;
-                    vision_time_start = false;
                 }
-
-            }
-            case 2:
-            {
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0)
+                case 2:
                 {
-                    rtl_status.status = 5;   //超过极限距离，返航
-                }
+                    if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0)
+                    {
+                        rtl_status.status = commander_state_s::MAIN_STATE_AUTO_RTL;   //5超过极限距离，返航
+                    }
 
-                if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
-                {
-                    rtl_status.status = 5;
-                }
+                    if((hrt_absolute_time() - vision_time) > 60e6 &&  vision_time_start == true)    //1min内没有对接成功，则认为此飞机不能完成对接任务
+                    {
+                        rtl_status.status = 5;
+                    }
 
-                if(sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) > 1000.0)
-                {
-                    follow_state = 10;
-                    vision_time_start = false;
-                }
+                    if(sqrt(home_position_distance.x * home_position_distance.x + home_position_distance.y * home_position_distance.y) > 1000.0)
+                    {
+                        follow_state = 10;
+                        vision_time_start = false;
+                    }
 
-                if(vision_enabled)
-                {
-                     set_offset(5.0f,0.0f);
-                     follow_state = 3;    // 视觉定位
+                    if(vision_enabled)
+                    {
+                         set_offset(5.0f,0.0f);
+                         follow_state = 3;    // 视觉定位
+
+                    }
 
                 }
-
-            }
-            case 3:
-            {
-                if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 &&midair_refueling ==false)
+                case 3:
                 {
-                    midair_refueling = true;
-                    refueling_time = hrt_absolute_time();
+                    if((_target_distance).length() < 1.0f && fabs(_current_target_motion.alt + set_hgt_offset - _navigator->get_global_position()->alt) < 1.0 &&midair_refueling ==false)
+                    {
+                        midair_refueling = true;
+                        refueling_time = hrt_absolute_time();
+                    }
+                    if((hrt_absolute_time() - refueling_time) > 10e6)    //对接10秒钟返航
+                    {
+                        rtl_status.status = 5;
+                    }
+
+                    if(vision_enabled == false)
+                    {
+                        follow_state = 2;
+                    }
                 }
-                if((hrt_absolute_time() - refueling_time) > 10e6)    //对接10秒钟返航
+                case 10:
                 {
-                    rtl_status.status = 5;
+                    set_offset(20.0f,-3.0f);//according the mc's ID
+                    follow_state = 0;
+
                 }
-
-                if(vision_enabled == false)
-                {
-                    follow_state = 2;
-                }
-            }
-            case 10:
-            {
-                set_offset(20.0f,-3.0f);//according the mc's ID
-                follow_state = 0;
-
-            }
-
             }
 
 
@@ -526,12 +512,8 @@ void FollowTarget::on_active()
             } else {
                 rtl_status_pub_fd = orb_advertise(ORB_ID(follow_to_commander), &rtl_status);
             }
-
 #endif
-
-
             //   math::Vector<3> prev_position_delta = _target_position_delta;
-
             // get last gps known reference for target
 
             map_projection_init(&target_ref, _previous_target_motion.lat, _previous_target_motion.lon);
