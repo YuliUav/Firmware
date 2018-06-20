@@ -56,6 +56,7 @@
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_gcs_to_formation.h>
 #include <uORB/topics/commander_state.h>
+#include <uORB/topics/ui_strive_formation_status.h>
 #include <v2.0/mavlink_types.h>
 
 #endif
@@ -65,6 +66,7 @@
 #include <uORB/topics/vision_sensor.h>
 #ifdef RTL_flag
 #include <uORB/topics/follow_to_commander.h>
+#include <uORB/topics/manual_control_setpoint.h>
 #endif
 #ifdef UI_STRIVE
 #define MC_ID 4      //本机的ID号（1、2、3、4）
@@ -88,7 +90,7 @@ public:
 private:
 
 	static constexpr int TARGET_TIMEOUT_MS = 2500;
-	static constexpr int TARGET_ACCEPTANCE_RADIUS_M = 5;
+    static constexpr int TARGET_ACCEPTANCE_RADIUS_M = 5;
 	static constexpr int INTERPOLATION_PNTS = 20;
 	static constexpr float FF_K = .25F;
 	static constexpr float OFFSET_M = 8;
@@ -172,9 +174,7 @@ private:
 
 #ifdef UI_STRIVE
     ui_strive_formation_s formation;  //data from 4 different vehicles    *****zjm
-    ui_strive_gcs_to_formation_s gcs_to_formation;  //data of leader uav
     int _formation_sub;
-    int _gcs_to_formation_sub;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
 #endif
 	uint64_t _target_updates;
@@ -194,7 +194,7 @@ private:
     float set_hgt_offset;
     bool last_rtl = false;
     bool vision_enabled = false;
-    int follow_state = 0;
+    int follow_state = 10;
     bool midair_refueling = false;
     hrt_abstime refueling_time = 0;
     hrt_abstime vision_time = 0;
@@ -209,6 +209,8 @@ private:
 #ifdef RTL_flag
     follow_to_commander_s  rtl_status;
     orb_advert_t rtl_status_pub_fd;
+    manual_control_setpoint_s manual_control_lastrtl;
+    int manual_control_lastrtl_sub = -1;
 #endif
 	follow_target_s _current_target_motion;
     follow_target_s _previous_target_motion;
