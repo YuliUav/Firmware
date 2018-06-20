@@ -55,6 +55,7 @@
 #ifdef UI_STRIVE
 #include <uORB/topics/ui_strive_formation.h>
 #include <uORB/topics/ui_strive_gcs_to_formation.h>
+#include <uORB/topics/commander_state.h>
 #include <v2.0/mavlink_types.h>
 
 #endif
