@@ -825,9 +825,9 @@ void Ekf2::task_main()
 			_ekf.get_position(pos);
 			lpos.x = (_ekf.local_position_is_valid()) ? pos[0] : 0.0f;
 			lpos.y = (_ekf.local_position_is_valid()) ? pos[1] : 0.0f;
-            //lpos.z = pos[2];//yuli
+            lpos.z = pos[2];//yuli
          //   orb_advert_t mavlink_log_pub =  nullptr;
-            lpos.z = -gps.alt / 1000.0f + lpos.ref_alt;
+            //lpos.z = -gps.alt / 1000.0f + lpos.ref_alt;
            // mavlink_log_info(&mavlink_log_pub,"  lpos.z:%.3f,lpos.ref_alt:%.3f",(double)lpos.z ,(double)lpos.ref_alt);//yuli20180411
 
 
@@ -903,9 +903,9 @@ void Ekf2::task_main()
 				global_pos.delta_lat_lon[1] = est_lon - lon_pre_reset;
 				global_pos.lat_lon_reset_counter = lpos.xy_reset_counter;
 
-//                global_pos.alt = -pos[2] + lpos.ref_alt; // Altitude AMSL in meters
+                global_pos.alt = -pos[2] + lpos.ref_alt; // Altitude AMSL in meters
               //
-                global_pos.alt = gps.alt / 1000.0f;   //yuli
+             //   global_pos.alt = gps.alt / 1000.0f;   //yuli
                 //
 				_ekf.get_posD_reset(&global_pos.delta_alt, &global_pos.alt_reset_counter);
 				// global altitude has opposite sign of local down position
