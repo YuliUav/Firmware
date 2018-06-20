@@ -189,7 +189,7 @@ Navigator::~Navigator()
 
 		/* task wakes up every 100ms or so at the longest */
 		_task_should_exit = true;
-
+        PX4_INFO("~Navigator() :%d",(double)hrt_absolute_time());
 		/* wait for a second for the task to quit at our request */
 		unsigned i = 0;
 
@@ -234,6 +234,7 @@ Navigator::home_position_update(bool force)
 
     if (updated || force) {
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
+        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 	}
 }
 
@@ -351,8 +352,9 @@ Navigator::task_main()
 //    fdss[0].events = POLLIN;
 
 	bool global_pos_available_once = false;
-
+ //   PX4_INFO("while");
 	while (!_task_should_exit) {
+        //PX4_INFO("while");
 //        if(_navigation_mode == &_follow_target)
 //        {
 //            int prett = px4_poll(&fdss[0], (sizeof(fdss) / sizeof(fdss[0])), 1000);
@@ -375,37 +377,38 @@ Navigator::task_main()
 //                continue;
 //            }
 //        }
+        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 		/* wait for up to 200ms for data */
-		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
+        int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
 //        PX4_WARN("_task_should_exit");
         /* iterate through navigation modes and set active/inactive for each */
 
-		if (pret == 0) {
-			/* timed out - periodic check for _task_should_exit, etc. */
-			if (global_pos_available_once) {
-				global_pos_available_once = false;
-				PX4_WARN("global position timeout");
-			}
-			/* Let the loop run anyway, don't do `continue` here. */
+        if (pret == 0) {
+            /* timed out - periodic check for _task_should_exit, etc. */
+            if (global_pos_available_once) {
+                global_pos_available_once = false;
+                PX4_WARN("global position timeout");
+            }
+            /* Let the loop run anyway, don't do `continue` here. */
 
-		} else if (pret < 0) {
-			/* this is undesirable but not much we can do - might want to flag unhappy status */
-			PX4_ERR("nav: poll error %d, %d", pret, errno);
-			usleep(10000);
-			continue;
-		} else {
+        } else if (pret < 0) {
+            /* this is undesirable but not much we can do - might want to flag unhappy status */
+            PX4_ERR("nav: poll error %d, %d", pret, errno);
+            usleep(10000);
+            continue;
+        } else {
 
-			if (fds[0].revents & POLLIN) {
-				/* success, global pos is available */
-				global_position_update();
-				if (_geofence.getSource() == Geofence::GF_SOURCE_GLOBALPOS) {
-					have_geofence_position_data = true;
-				}
-				global_pos_available_once = true;
-			}
-		}
+            if (fds[0].revents & POLLIN) {
+                /* success, global pos is available */
+                global_position_update();
+                if (_geofence.getSource() == Geofence::GF_SOURCE_GLOBALPOS) {
+                    have_geofence_position_data = true;
+                }
+                global_pos_available_once = true;
+            }
+        }
 
-		perf_begin(_loop_perf);
+        perf_begin(_loop_perf);
 
 		bool updated;
 
@@ -467,8 +470,9 @@ Navigator::task_main()
 //        {
 //            heli_pos_update();
 //        }
-//		orb_check(_vehicle_command_sub, &updated);
-		if (updated) {
+        orb_check(_vehicle_command_sub, &updated);
+
+        if (updated) {
 			vehicle_command_s cmd;
 			orb_copy(ORB_ID(vehicle_command), _vehicle_command_sub, &cmd);
 
@@ -684,7 +688,7 @@ Navigator::task_main()
         /* run follow target mode, only for test!*/
         _navigation_mode_array[9]->run(true);
 #else
-		for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
+        for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
             _navigation_mode_array[i]->run(_navigation_mode == _navigation_mode_array[i]);
             if(_navigation_mode == _navigation_mode_array[i])
             {
@@ -699,10 +703,9 @@ Navigator::task_main()
                     PX4_INFO("rtl");
                 }
 
-
             }
 
-		}
+        }
 #endif
 		/* if nothing is running, set position setpoint triplet invalid once */
 		if (_navigation_mode == nullptr && !_pos_sp_triplet_published_invalid_once) {
@@ -725,7 +728,7 @@ Navigator::task_main()
 			_mission_result_updated = false;
 		}
 
-		perf_end(_loop_perf);
+        perf_end(_loop_perf);
 	}
 	PX4_INFO("exiting");
 
