@@ -68,10 +68,12 @@
 #include <uORB/topics/follow_to_commander.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #endif
-#ifdef UI_STRIVE
 #define MC_ID 4      //本机的ID号（1、2、3、4）
+#define HORIZONTAL_OFFSET 8  //position offset(meters)
+#define VERTICAL_OFFSET 3 //height offset(meters)
+
 extern mavlink_system_t mavlink_system;//it contains system id, you must'nt change this struct data anytime anywhere    ***zjm
-#endif
+
 class FollowTarget : public MissionBlock
 {
 
@@ -154,9 +156,6 @@ private:
     orb_advert_t _heli_followtarg_pub;
     bool firstTime;
     targ_heli_s targ_heli;
-
-    int vision_senser_sub;
-
 #endif
     hrt_abstime currentTime;
 	float _step_time_in_ms;
@@ -174,7 +173,10 @@ private:
 
 #ifdef UI_STRIVE
     ui_strive_formation_s formation;  //data from 4 different vehicles    *****zjm
+    bool ready_to_dock;    //current docking vhicle gets vision state 3, and moves to docking area(same height, 3.5m behind target)
     int _formation_sub;
+    int _vision_sensor_sub;
+    vision_sensor_s vision_sensor;
     orb_advert_t _formation_status_pub;     //publish formation status      *****zjm
 #endif
 	uint64_t _target_updates;
@@ -189,16 +191,22 @@ private:
 	math::Vector<3> _filtered_target_position_delta;
 #ifdef FOLLOWTARGET
     math::Vector<3> _heli_yaw;
+    math::Vector<3> _rotated_target_distance;
+    math::Matrix<3, 3> _yaw_matrix; //to rotate relative target x,y,z with yaw angle about z axis   ***zjm
 #endif
 #ifdef SET_OFFSET
     float set_hgt_offset;
     bool last_rtl = false;
     bool vision_enabled = false;
+    bool start_docking = false;
+    hrt_abstime start_docking_time = 0;
+    hrt_abstime docking_last_time = 0;
     int follow_state = 10;
     bool midair_refueling = false;
     hrt_abstime refueling_time = 0;
-    hrt_abstime vision_time = 0;
-    bool vision_time_start = false;
+//    hrt_abstime vision_time = 0;
+//    bool vision_time_start = false;
+    uint8_t total_rtl_vehicles; //total number of vehicles those return to land
 #endif
 
 #ifdef HOME_POSTION
@@ -214,8 +222,6 @@ private:
 #endif
 	follow_target_s _current_target_motion;
     follow_target_s _previous_target_motion;
-    heli_followtarg_s _heli_follow_result;
-
 	float _yaw_rate;
 	float _responsiveness;
 	float _yaw_auto_max;
@@ -240,6 +246,6 @@ private:
 	void update_target_motion();
 	void update_target_velocity();
 #ifdef SET_OFFSET
-    void set_offset(float x,float y);
+    void set_offset(float x,float y);   //set horizontial and veritical position offset from target
 #endif
 };
