@@ -2255,7 +2255,7 @@ void MavlinkReceiver::handle_message_formation(mavlink_message_t *msg)
     mavlink_msg_formation_decode(msg, &mav_formation);
     _ui_strive_formation.lon = mav_formation.lon * 1e-7;
     _ui_strive_formation.lat = mav_formation.lat * 1e-7;
-    _ui_strive_formation.alt = mav_formation.alt * 1e-3f;
+    _ui_strive_formation.alt = mav_formation.alt;
     _ui_strive_formation.vel_n = mav_formation.vel_n;
     _ui_strive_formation.vel_e = mav_formation.vel_e;
     _ui_strive_formation.vel_d = mav_formation.vel_d;
@@ -2282,7 +2282,7 @@ void MavlinkReceiver::handle_message_gcs_to_formation(mavlink_message_t *msg)
     _ui_strive_gcs_to_formation.leader_timestamp = gcs_to_formation_position.time_usec;
     _ui_strive_gcs_to_formation.lon = gcs_to_formation_position.lon * 1e-7;
     _ui_strive_gcs_to_formation.lat = gcs_to_formation_position.lat * 1e-7;
-    _ui_strive_gcs_to_formation.alt = gcs_to_formation_position.alt * 1e-3;
+    _ui_strive_gcs_to_formation.alt = gcs_to_formation_position.alt;
 
     PX4_INFO("receive gcs to formation lon:%d,lon:%.7f,lat:%.7f,alt:%.3f,seq:%d", gcs_to_formation_position.lon, (double)_ui_strive_gcs_to_formation.lon, (double)_ui_strive_gcs_to_formation.lat, (double)_ui_strive_gcs_to_formation.alt, msg->seq);
     // publish gcs to formation data
