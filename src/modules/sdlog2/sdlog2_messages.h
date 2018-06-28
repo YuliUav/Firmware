@@ -669,6 +669,21 @@ struct log_TARG_s {
     float vel_d;
     float yaw;
 };
+
+/* --- PARM - VISION_SENSOR --- */
+#define LOG_VSEN_MSG 133
+struct log_VSEN_s {
+    uint64_t timestamp; // required for logger
+    float vision_x;
+    float vision_y;
+    float vision_z;
+    float vision_vx;
+    float vision_vy;
+    float vision_vz;
+    int32_t vision_distortion_x;
+    int32_t vision_distortion_y;
+    int8_t status;
+};
 #pragma pack(pop)
 // the lower type of initialisation is not supported in C++
 #ifndef __cplusplus
@@ -738,6 +753,7 @@ static const struct log_format_s log_formats[] = {
 	LOG_FORMAT(LOAD, "f", "CPU"),
 	LOG_FORMAT(DPRS, "Qffff", "errors,DPRESraw,DPRES,DPRESmax,Temp"),
 	LOG_FORMAT(TARG, "QLLfffff", "timestamp,Lat,Lon,Alt,VelN,VelE,VelD,yaw"),
+        LOG_FORMAT(VSEN, "QffffffLLB", "timestamp,x,y,z,vx,vy,vz,dist_x,dist_y,stat"),
 	/* system-level messages, ID >= 0x80 */
 	/* FMT: don't write format of format message, it's useless */
 	LOG_FORMAT(TIME, "Q", "StartTime"),

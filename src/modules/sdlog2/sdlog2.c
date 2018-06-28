@@ -113,7 +113,8 @@
 #include <uORB/topics/commander_state.h>
 #include <uORB/topics/cpuload.h>
 #ifdef FOLLOWTARGET
-    #include <uORB/topics/targ_heli.h>
+#include <uORB/topics/targ_heli.h>
+#include <uORB/topics/vision_sensor.h>
 #endif
 #include <systemlib/systemlib.h>
 #include <systemlib/param/param.h>
@@ -1226,6 +1227,7 @@ int sdlog2_thread_main(int argc, char *argv[])
         struct cpuload_s cpuload;
 #ifdef FOLLOWTARGET
         struct targ_heli_s targ_heli;
+        struct vision_sensor_s vision_sensor;
 #endif
         struct vehicle_gps_position_s dual_gps_pos;
     } buf;
@@ -1291,6 +1293,7 @@ int sdlog2_thread_main(int argc, char *argv[])
             struct log_LOAD_s log_LOAD;
             struct log_DPRS_s log_DPRS;
             struct log_TARG_s log_TARG;
+            struct log_VSEN_s log_VSEN;
         } body;
     } log_msg = {
         LOG_PACKET_HEADER_INIT(0)
@@ -1342,6 +1345,7 @@ int sdlog2_thread_main(int argc, char *argv[])
         int cpuload_sub;
 #ifdef FOLLOWTARGET
         int targ_heli_sub;
+        int vision_sensor_sub;
 #endif
         int diff_pres_sub;
     } subs;
@@ -1388,6 +1392,7 @@ int sdlog2_thread_main(int argc, char *argv[])
     subs.cpuload_sub = -1;
 #ifdef FOLLOWTARGET
     subs.targ_heli_sub = -1;
+    subs.vision_sensor_sub = -1,
 #endif
     subs.diff_pres_sub = -1;
 
@@ -2338,7 +2343,6 @@ int sdlog2_thread_main(int argc, char *argv[])
         /* --- FOLLOW TARGET --- */
         if (copy_if_updated(ORB_ID(targ_heli), &subs.targ_heli_sub, &buf.targ_heli)) {
             log_msg.msg_type = LOG_TARG_MSG;
-
             log_msg.body.log_TARG.timestamp = buf.targ_heli.timestamp;
             log_msg.body.log_TARG.lat = buf.targ_heli.lat*(double)1e7;
             log_msg.body.log_TARG.lon = buf.targ_heli.lon*(double)1e7;
@@ -2348,6 +2352,23 @@ int sdlog2_thread_main(int argc, char *argv[])
             log_msg.body.log_TARG.vel_d = buf.targ_heli.vel_d;
             log_msg.body.log_TARG.yaw = buf.targ_heli.yaw;
             LOGBUFFER_WRITE_AND_COUNT(TARG);
+
+        }
+
+        /* --- VISION SENSOR--- */
+        if (copy_if_updated(ORB_ID(vision_sensor), &subs.vision_sensor_sub, &buf.vision_sensor)) {
+            log_msg.msg_type = LOG_VSEN_MSG;
+            log_msg.body.log_VSEN.timestamp = buf.vision_sensor.timestamp; // required for logger
+            log_msg.body.log_VSEN.vision_x = buf.vision_sensor.vision_x;
+            log_msg.body.log_VSEN.vision_y = buf.vision_sensor.vision_y;
+            log_msg.body.log_VSEN.vision_z = buf.vision_sensor.vision_z;
+            log_msg.body.log_VSEN.vision_vx = buf.vision_sensor.vision_vx;
+            log_msg.body.log_VSEN.vision_vy = buf.vision_sensor.vision_vy;
+            log_msg.body.log_VSEN.vision_vz = buf.vision_sensor.vision_vz;
+            log_msg.body.log_VSEN.vision_distortion_x = buf.vision_sensor.vision_distortion_x;
+            log_msg.body.log_VSEN.vision_distortion_y = buf.vision_sensor.vision_distortion_y;
+            log_msg.body.log_VSEN.status = buf.vision_sensor.status;
+            LOGBUFFER_WRITE_AND_COUNT(VSEN);
 
         }
 #endif
