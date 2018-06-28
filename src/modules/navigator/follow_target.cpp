@@ -59,8 +59,8 @@
 #include <lib/mathlib/math/Limits.hpp>
 #include "navigator.h"
 #define SET_OFFSET
-//#define VISIONTEST
-#define TESTANGLE M_PI//0
+#define VISIONTEST
+#define TESTANGLE 2.8//M_PI,2.8,0
 
 FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     MissionBlock(navigator, name),
@@ -382,11 +382,10 @@ void FollowTarget::on_active()
                 // but seems to work ok for now since the yaw rate cannot be controlled directly in auto mode
 #ifdef VISIONTEST
                 if(_est_target_vel.length() > 5)    //target is moving, so we set follow position by target angle
-//                _yaw_angle = get_bearing_to_next_waypoint(_navigator->get_global_position()->lat, //after test, please incomment    *****ZJM
-//                                                          _navigator->get_global_position()->lon,
-//                                                          _current_target_motion.lat,
-//                                                          _current_target_motion.lon);
-                    _yaw_angle = TESTANGLE;
+                _yaw_angle = get_bearing_to_next_waypoint(_navigator->get_global_position()->lat, //after test, please incomment    *****ZJM
+                                                          _navigator->get_global_position()->lon,
+                                                          _current_target_motion.lat,
+                                                          _current_target_motion.lon);
                 else    //target is not moving, we follow in the south of it
                 {
                     _yaw_angle = TESTANGLE;
@@ -399,8 +398,8 @@ void FollowTarget::on_active()
                 _yaw_rate = math::constrain(_yaw_rate, -1.0F * _yaw_auto_max, _yaw_auto_max);
 
             } else {
-//                _yaw_angle = _yaw_rate = NAN;
-                _yaw_angle = TESTANGLE;//targ_heli.yaw;
+                _yaw_angle = _yaw_rate = NAN;
+//                _yaw_angle = TESTANGLE;//targ_heli.yaw;
 #ifndef VISIONTEST
                 _yaw_angle = TESTANGLE;//targ_heli.yaw;
 #endif
@@ -474,7 +473,8 @@ void FollowTarget::on_active()
         //        PX4_INFO("pos, lon:%.7f, lat:%.7f, alt:%.3f",(double)_navigator->get_global_position()->lon, (double)_navigator->get_global_position()->lat, (double)_navigator->get_global_position()->alt);
         //        PX4_INFO("target, lon:%.7f, lat:%.7f, alt:%.3f",(double)target_motion_with_offset.lon, (double)target_motion_with_offset.lat, (double)target_motion_with_offset.alt + (double)set_hgt_offset);
         //        PX4_INFO("distance to target, x:%.1f, y:%.1f, z:%.1f",(double)_rotated_target_distance(0), (double)_rotated_target_distance(1), (double)_rotated_target_distance(2));
-        if(ready_to_dock && _rotated_target_distance(0) > -1.5f && _rotated_target_distance(0) < 1.5f && sqrt(_rotated_target_distance(1) * _rotated_target_distance(1) + _rotated_target_distance(2) * _rotated_target_distance(2)) < 2)
+        if(ready_to_dock && vision_sensor.vision_x > 2.0f && vision_sensor.vision_x < 5.0f && sqrt(vision_sensor.vision_y * vision_sensor.vision_y + vision_sensor.vision_z * vision_sensor.vision_z) < 2 )
+                /*_rotated_target_distance(0) > -1.5f && _rotated_target_distance(0) < 1.5f && sqrt(_rotated_target_distance(1) * _rotated_target_distance(1) + _rotated_target_distance(2) * _rotated_target_distance(2)) < 2*/
         {
             if(!midair_refueling)   // start to dock/refule
             {
