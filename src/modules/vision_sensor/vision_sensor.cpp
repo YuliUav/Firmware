@@ -227,7 +227,7 @@ void sensor_handle_message(mavlink_message_t *msg)
 //         (double)vision_sensor_BODY.vision_vx,(double)vision_sensor_BODY.vision_vy, (double)vision_sensor_BODY.vision_vz,
 //         vision_sensor_BODY.vision_distortion_x, vision_sensor_BODY.vision_distortion_y);
         PX4_INFO("vision status :%d",vision_sensor_msg.status);
-        orb_publish(ORB_ID(vision_sensor), vision_sensor_pub_fd , &vision_sensor_BODY);
+//        orb_publish(ORB_ID(vision_sensor), vision_sensor_pub_fd , &vision_sensor_BODY);
         break;
     }
 
@@ -410,7 +410,7 @@ int vision_sensor_thread_main(int argc, char *argv[])
            own_stat.vel_d = vehicle_status.vel_d + vision_sensor_NED.vision_vz;
 //           own_stat.yaw =  vehicle_status.yaw;
 //           mavlink_log_info(&mavlink_log_pub, "vision_pos: %.7f, %.7f, %.2f", own_stat.lat, own_stat.lon, (double)own_stat.alt);
-           orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
+//           orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
        }
 #ifndef HOMETEST
        else
@@ -421,7 +421,7 @@ int vision_sensor_thread_main(int argc, char *argv[])
            own_stat.alt = gcs_to_formation.alt;
            PX4_INFO("lead plane pos: %.7f, %.7f, %.2f", own_stat.lat, own_stat.lon, (double)own_stat.alt);
 //           mavlink_log_info(&mavlink_log_pub, "lead plane pos: %.7f, %.7f, %.2f", own_stat.lat, own_stat.lon, (double)own_stat.alt);
-           orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
+//           orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
        }
 #else
        bool _home_pos_update;
@@ -442,6 +442,7 @@ int vision_sensor_thread_main(int argc, char *argv[])
        }
 #endif
        own_stat.timestamp = hrt_absolute_time();//delete after test *****ZJM
+       orb_publish(ORB_ID(targ_heli), own_stat_publish_fd, &own_stat);
        //show log msg every second
        if(!show_log_msg_timer)
        {
