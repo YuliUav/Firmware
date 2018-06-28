@@ -277,7 +277,7 @@ Syslink::task_main()
 
 	/* Open serial port */
 	const char *dev = "/dev/ttyS2";
-	_fd = open_serial(dev);
+        _fd = open_serial(dev);
 
 	if (_fd < 0) {
 		err(1, "can't open %s", dev);

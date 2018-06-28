@@ -101,7 +101,6 @@ MissionBlock::is_mission_item_reached()
 
 		case NAV_CMD_IDLE: /* fall through */
 		case NAV_CMD_LOITER_UNLIMITED:
-        PX4_INFO("false 0");
 			return false;
 
 		case NAV_CMD_DO_LAND_START:
@@ -641,17 +640,15 @@ MissionBlock::set_follow_target_item(struct mission_item_s *item, float min_clea
 
 		item->lat = target.lat;
 		item->lon = target.lon;
-        //item->altitude = _navigator->get_home_position()->alt;
         item->altitude = target.alt;
-#ifdef FOLLOWTARGET
-        item->altitude += min_clearance; // set altitude without any constrain       ******jim
-#elif
-		if (min_clearance > 8.0f) {
-			item->altitude += min_clearance;
-		} else {
-			item->altitude += 8.0f; // if min clearance is bad set it to 8.0 meters (well above the average height of a person)
-		}
-#endif
+        item->altitude += min_clearance;
+        PX4_INFO("set_follow_target_item lat:%.7f lon:%.1f alt:%.2f",item->lat,item->lon, (double)item->altitude);
+
+//		if (min_clearance > 8.0f) {
+//			item->altitude += min_clearance;
+//		} else {
+//			item->altitude += 8.0f; // if min clearance is bad set it to 8.0 meters (well above the average height of a person)
+//		}
 	}
 
 	item->altitude_is_relative = false;
