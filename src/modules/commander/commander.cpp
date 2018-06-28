@@ -248,8 +248,8 @@ static bool can_arm_without_gps = false;
 #ifdef CHANGE_STATE
 hrt_abstime task_planning_time = 0;
 hrt_abstime task_start_time = 0;
-hrt_abstime takeoff_time = 2e6;
-hrt_abstime followtarget_time = 10e6;
+hrt_abstime takeoff_time = 1e6;         //wait for 1s after receive takeoff command
+hrt_abstime followtarget_time = 10e6;   //wait for 1s before changing to follow target state from takeoff
 hrt_abstime catch_time = 15e6;
 hrt_abstime docked_time = 20e6;
 hrt_abstime pos_ctl_time = 25e6;
@@ -332,43 +332,27 @@ void change_state(uint8_t _state)
 void task_plan();
 void task_plan()
 {
-    if(task_planning_time > return_time || return_flag.status == 5)
+    if(task_planning_time > return_time || return_flag.status == commander_state_s::MAIN_STATE_AUTO_RTL) //return_time: 5 minutes
     {
-         change_state(5/*MAIN_STATE_AUTO_RTL*/);
+         change_state(commander_state_s::MAIN_STATE_AUTO_RTL);
+//         mavlink_log_info(&mavlink_log_pub,"commander:sysID:%d,MAIN_STATE_AUTO_RTL",mavlink_system.sysid);
          PX4_INFO("MAIN_STATE_AUTO_RTL");
     }
 
-    ///
-//    else if(task_planning_time > pos_ctl_time)
+//    else if(task_planning_time > followtarget_time) //10 seconds  zjm
 //    {
-//        change_state(2/*MAIN_STATE_POSCTL*/);
-//        PX4_INFO("MAIN_STATE_POSCTL");
-//    }
-//    ///
-//    else if(task_planning_time > docked_time)
-//    {
-//        change_state(2/*MAIN_STATE_POSCTL*/);
-//        PX4_INFO("MAIN_STATE_POSCTL");
-//    }
-    ///
-
-//    else if(task_planning_time > catch_time)
-//    {
-//        change_state(12/*MAIN_STATE_AUTO_FOLLOW_TARGET*/);
+//        change_state(commander_state_s::MAIN_STATE_AUTO_FOLLOW_TARGET);
 //        PX4_INFO("MAIN_STATE_AUTO_FOLLOW_TARGET");
-
 //    }
-   ///
-    else if(task_planning_time > followtarget_time)
-    {
-        change_state(12/*MAIN_STATE_AUTO_FOLLOW_TARGET*/);
-        PX4_INFO("MAIN_STATE_AUTO_FOLLOW_TARGET");
-    }
     ///
-    else if(task_planning_time > takeoff_time)
+    else if(task_planning_time > takeoff_time)  //1 seconds
     {
-        change_state(10/*MAIN_STATE_AUTO_TAKEOFF*/);
+        change_state(commander_state_s::MAIN_STATE_AUTO_TAKEOFF);
         PX4_INFO("MAIN_STATE_AUTO_TAKEOFF");
+    }
+    if (internal_state.main_state == commander_state_s::MAIN_STATE_AUTO_TAKEOFF //only auto take off is completed, will we change to follow target mode zjm
+            && _mission_result.finished) {
+        change_state(commander_state_s::MAIN_STATE_AUTO_FOLLOW_TARGET);
     }
 }
 #endif
@@ -3096,6 +3080,7 @@ int commander_thread_main(int argc, char *argv[])
         if(updated)
         {
             orb_copy(ORB_ID(follow_to_commander), return_flag_sub, &return_flag);
+            mavlink_log_info(&mavlink_log_pub, "commander recieve state:%d", return_flag.status);
          //   PX4_INFO("foramtion1.lat:%.7f", formation1.lat);
         }
 
@@ -3103,7 +3088,10 @@ int commander_thread_main(int argc, char *argv[])
 #ifdef CHANGE_STATE
         PX4_INFO("formation1.status :%d",formation1.status);
         followtarget_time = 10e6 * (hrt_abstime)mavlink_system.sysid;
-        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) && (mavlink_system.sysid == 1 || formation1.status == 5 ||formation1.status == 12 ||formation1.status == 10))
+        if( (mavlink_system.sysid != 1 || sp_man.aux1 > 0.5f) &&
+                (mavlink_system.sysid == 1 || formation1.status == commander_state_s::MAIN_STATE_AUTO_RTL
+                 ||formation1.status == commander_state_s::MAIN_STATE_AUTO_FOLLOW_TARGET
+                 ||formation1.status == commander_state_s::MAIN_STATE_AUTO_TAKEOFF))
         {
            // PX4_INFO("sp_man.aux1 > 0.5f");
             if(plan_time_flag == false)
