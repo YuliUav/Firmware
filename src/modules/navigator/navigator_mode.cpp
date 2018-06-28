@@ -62,7 +62,6 @@ void
 NavigatorMode::run(bool active)
 {
 	if (active) {
-        PX4_INFO("_first_run:%d",_first_run);
         if (_first_run) {
 			/* first run */
             _first_run = false;

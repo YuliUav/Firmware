@@ -234,7 +234,6 @@ Navigator::home_position_update(bool force)
 
     if (updated || force) {
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
-        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 	}
 }
 
@@ -352,32 +351,7 @@ Navigator::task_main()
 //    fdss[0].events = POLLIN;
 
 	bool global_pos_available_once = false;
- //   PX4_INFO("while");
 	while (!_task_should_exit) {
-        //PX4_INFO("while");
-//        if(_navigation_mode == &_follow_target)
-//        {
-//            int prett = px4_poll(&fdss[0], (sizeof(fdss) / sizeof(fdss[0])), 1000);
-//            //        PX4_WARN("_task_should_exit");
-//            /* iterate through navigation modes and set active/inactive for each */
-
-//            if (prett == 0) {
-//                /* timed out - periodic check for _task_should_exit, etc. */
-
-//                PX4_WARN("global position timeout");
-//            }
-//            /* Let the loop run anyway, don't do `continue` here. */
-
-
-//            else if (prett < 0)
-//            {
-//                /* this is undesirable but not much we can do - might want to flag unhappy status */
-//                // PX4_ERR("nav: poll error %d, %d", pret, errno);
-//                usleep(10000);
-//                continue;
-//            }
-//        }
-        PX4_INFO("pos.lon :%.7f",_home_pos.lon);
 		/* wait for up to 200ms for data */
         int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
 //        PX4_WARN("_task_should_exit");
@@ -671,7 +645,7 @@ Navigator::task_main()
 				break;
 			case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 			case vehicle_status_s::NAVIGATION_STATE_ACRO:
-			case vehicle_status_s::NAVIGATION_STATE_ALTCTL:
+            case vehicle_status_s::NAVIGATION_STATE_ALTCTL:
 			case vehicle_status_s::NAVIGATION_STATE_POSCTL:
 			case vehicle_status_s::NAVIGATION_STATE_TERMINATION:
 			case vehicle_status_s::NAVIGATION_STATE_OFFBOARD:
@@ -690,21 +664,6 @@ Navigator::task_main()
 #else
         for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
             _navigation_mode_array[i]->run(_navigation_mode == _navigation_mode_array[i]);
-            if(_navigation_mode == _navigation_mode_array[i])
-            {
-                if(i == 7)
-                {
-                      mavlink_log_info(&_mavlink_log_pub,"takeoff");
-                    PX4_INFO("takeoff");
-                }
-                if(i == 2)
-                {
-                    mavlink_log_info(&_mavlink_log_pub,"rtl");
-                    PX4_INFO("rtl");
-                }
-
-            }
-
         }
 #endif
 		/* if nothing is running, set position setpoint triplet invalid once */

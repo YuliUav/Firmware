@@ -60,7 +60,7 @@
 #include "navigator.h"
 #define SET_OFFSET
 //#define VISIONTEST
-#define TESTANGLE 0
+#define TESTANGLE M_PI//0
 
 FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     MissionBlock(navigator, name),
@@ -154,7 +154,6 @@ void FollowTarget::on_activation()
     _yaw_auto_max = math::radians(_param_yaw_auto_max.get());
 
     _follow_target_position = _param_tracking_side.get();
-    //    set_offset(3.0f,1.5f);//according the mc's ID
 
     if ((_follow_target_position > FOLLOW_FROM_LEFT) || (_follow_target_position < FOLLOW_FROM_RIGHT)) {
         _follow_target_position = FOLLOW_FROM_BEHIND;
@@ -383,10 +382,11 @@ void FollowTarget::on_active()
                 // but seems to work ok for now since the yaw rate cannot be controlled directly in auto mode
 #ifdef VISIONTEST
                 if(_est_target_vel.length() > 5)    //target is moving, so we set follow position by target angle
-                _yaw_angle = get_bearing_to_next_waypoint(_navigator->get_global_position()->lat, //after test, please incomment    *****ZJM
-                                                          _navigator->get_global_position()->lon,
-                                                          _current_target_motion.lat,
-                                                          _current_target_motion.lon);
+//                _yaw_angle = get_bearing_to_next_waypoint(_navigator->get_global_position()->lat, //after test, please incomment    *****ZJM
+//                                                          _navigator->get_global_position()->lon,
+//                                                          _current_target_motion.lat,
+//                                                          _current_target_motion.lon);
+                    _yaw_angle = TESTANGLE;
                 else    //target is not moving, we follow in the south of it
                 {
                     _yaw_angle = TESTANGLE;
@@ -399,7 +399,8 @@ void FollowTarget::on_active()
                 _yaw_rate = math::constrain(_yaw_rate, -1.0F * _yaw_auto_max, _yaw_auto_max);
 
             } else {
-                _yaw_angle = _yaw_rate = NAN;
+//                _yaw_angle = _yaw_rate = NAN;
+                _yaw_angle = TESTANGLE;//targ_heli.yaw;
 #ifndef VISIONTEST
                 _yaw_angle = TESTANGLE;//targ_heli.yaw;
 #endif
@@ -451,7 +452,7 @@ void FollowTarget::on_active()
     _rotated_target_distance(2) = target_motion_with_offset.alt + set_hgt_offset - _navigator->get_global_position()->alt;
     //    PX4_INFO("sysID:%d,rtl_vehicles:%d",mavlink_system.sysid, total_rtl_vehicles);
     //is the current vehicle in the dock/refule cylinder
-    docking_last_time = mavlink_system.sysid == 1 ? 60e6 : 60e6;   //first vehicle has 2 minutes, and others have 1 minutes
+    docking_last_time = mavlink_system.sysid == 1 ? 60e6 : 30e6;   //first vehicle has 1 minutes, and others have 30 seconds
     if(total_rtl_vehicles + 1 == mavlink_system.sysid)  //*********************** current vehicle which is ready to dock(got vision status 3)should be docking, normally +1
     {
         if(!start_docking)
@@ -507,7 +508,7 @@ void FollowTarget::on_active()
 
     // update state machine
     if (target_velocity_valid()) {  //only if the target has been updated, will we start to follow target  ***zjm
-        //        _yaw_angle = TESTANGLE;//targ_heli.yaw;     //after test you must delete this   *****ZJM
+        _yaw_angle = TESTANGLE;//targ_heli.yaw;     //after test you must delete this   *****ZJM
         //        mavlink_log_info(&mavlink_log_pub,"_follow_target_state:%d,yaw:%.1f",_follow_target_state,(double)_yaw_angle);
         switch (_follow_target_state) {
 
@@ -545,7 +546,6 @@ void FollowTarget::on_active()
 
                 if ((current_time - _last_update_time) / 1000 >= _step_time_in_ms) {
                     _current_vel+= _step_vel;
-                    //                PX4_INFO("velocity:current_vel(0):%.1f, _step_vel(0):%.1f:_current_vel(1):%.1f, _step_vel(1):%.1f:",(double)_current_vel(0),(double)_step_vel(0), (double)_current_vel(1),(double)_step_vel(1));
                     _last_update_time = current_time;
                 }
 #ifdef SET_OFFSET
