@@ -60,7 +60,7 @@
 #include "navigator.h"
 #define SET_OFFSET
 #define VISIONTEST
-#define TESTANGLE 2.8//M_PI,2.8,0
+#define TESTANGLE 0//M_PI,2.8,0
 
 FollowTarget::FollowTarget(Navigator *navigator, const char *name) :
     MissionBlock(navigator, name),
@@ -202,7 +202,7 @@ void FollowTarget::on_active()
     bool _radius_exited = false;
     bool updated = false;
     float dt_ms = 0;
-
+    targ_hgt_offset = _param_min_alt.get();
 #ifdef HOME_POSTION
     orb_check(home_position_sub, &updated);
     if(updated)
@@ -226,7 +226,10 @@ void FollowTarget::on_active()
     if(updated)
     {
         orb_copy(ORB_ID(vision_sensor), _vision_sensor_sub, &vision_sensor);
-        //        PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
+//        mavlink_log_info(&mavlink_log_pub, "vision_sensor state:%d", vision_sensor.status);
+        if(vision_sensor.status == 3)
+            targ_hgt_offset = 0;
+//            PX4_INFO("foramtion1.lat:%.7f, sysid:%d", formation.lat, formation.sysid);
     }
 
     //caculate different offset for vehicles in formation  ***zjm
@@ -235,13 +238,13 @@ void FollowTarget::on_active()
     {
         //move to docking area(3.5m behind target)
         ready_to_dock = true;
-        set_offset((mavlink_system.sysid - total_rtl_vehicles - 1) * HORIZONTAL_OFFSET + 3.5, (mavlink_system.sysid - total_rtl_vehicles - 1) * VERTICAL_OFFSET);
+        set_offset((mavlink_system.sysid - total_rtl_vehicles - 1) * HORIZONTAL_OFFSET + 2.5, (mavlink_system.sysid - total_rtl_vehicles - 1) * VERTICAL_OFFSET);
     }
     else
     {
         ready_to_dock = false;
         //move to wait area(8.5m behind target)
-        set_offset((mavlink_system.sysid - total_rtl_vehicles) * HORIZONTAL_OFFSET + 3.5, (mavlink_system.sysid - total_rtl_vehicles - 1) * VERTICAL_OFFSET);
+        set_offset((mavlink_system.sysid - total_rtl_vehicles) * HORIZONTAL_OFFSET + 2.5, (mavlink_system.sysid - total_rtl_vehicles - 1) * VERTICAL_OFFSET);
     }
 #else
     //no vision, so we set dock area 8 meters behind target for safty
@@ -325,7 +328,7 @@ void FollowTarget::on_active()
 
             // if the target is moving add an offset and rotation
 #ifdef VISIONTEST
-            if (_est_target_vel.length() > 3.0F) {  //.5F
+            if (_est_target_vel.length() > 1.0F) {  //.5F
                 _target_position_offset = _rot_matrix * _est_target_vel.normalized() * _follow_offset;
             }
             else
@@ -358,7 +361,9 @@ void FollowTarget::on_active()
             else if(hrt_elapsed_time(&currentTime) > 1e6)
             {
                 firstTime = true;
-                mavlink_log_info(&mavlink_log_pub, "distance to target, x:%.1f, y:%.1f, z:%.1f",(double)_rotated_target_distance(0), (double)_rotated_target_distance(1), (double)_rotated_target_distance(2));
+//                mavlink_log_info(&mavlink_log_pub, "distance to target, x:%.1f, y:%.1f, z:%.1f",(double)_rotated_target_distance(0), (double)_rotated_target_distance(1), (double)_rotated_target_distance(2));
+                mavlink_log_info(&mavlink_log_pub, "distance sta:%d,x:%.1f, y:%.1f,z:%.1f",vision_sensor.status,(double)vision_sensor.vision_x, (double)vision_sensor.vision_y, (double)vision_sensor.vision_z);
+//                mavlink_log_info(&mavlink_log_pub, "targ_hgt_offset:%.1f",(double)_param_min_alt.get());
             }
             // to keep the velocity increase/decrease smooth
             // calculate how many velocity increments/decrements
@@ -381,7 +386,7 @@ void FollowTarget::on_active()
                 // this really needs to control the yaw rate directly in the attitude pid controller
                 // but seems to work ok for now since the yaw rate cannot be controlled directly in auto mode
 #ifdef VISIONTEST
-                if(_est_target_vel.length() > 5)    //target is moving, so we set follow position by target angle
+                if(_est_target_vel.length() > 1.0F)    //target is moving, so we set follow position by target angle
                 _yaw_angle = get_bearing_to_next_waypoint(_navigator->get_global_position()->lat, //after test, please incomment    *****ZJM
                                                           _navigator->get_global_position()->lon,
                                                           _current_target_motion.lat,
@@ -437,18 +442,18 @@ void FollowTarget::on_active()
         }
     }
 #ifdef SET_OFFSET   //if vehicle is in the docking area
-    _yaw_matrix.data[0][0] = cos(_yaw_angle);
-    _yaw_matrix.data[0][1] = sin(_yaw_angle);
-    _yaw_matrix.data[0][2] = 0;
-    _yaw_matrix.data[1][0] = -sin(_yaw_angle);
-    _yaw_matrix.data[1][1] = cos(_yaw_angle);
-    _yaw_matrix.data[1][2] = 0;
-    _yaw_matrix.data[2][0] = 0;
-    _yaw_matrix.data[2][1] = 0;
-    _yaw_matrix.data[2][2] = 1;
+//    _yaw_matrix.data[0][0] = cos(_yaw_angle);
+//    _yaw_matrix.data[0][1] = sin(_yaw_angle);
+//    _yaw_matrix.data[0][2] = 0;
+//    _yaw_matrix.data[1][0] = -sin(_yaw_angle);
+//    _yaw_matrix.data[1][1] = cos(_yaw_angle);
+//    _yaw_matrix.data[1][2] = 0;
+//    _yaw_matrix.data[2][0] = 0;
+//    _yaw_matrix.data[2][1] = 0;
+//    _yaw_matrix.data[2][2] = 1;
 
-    _rotated_target_distance = _yaw_matrix * (_target_distance + _target_position_offset);
-    _rotated_target_distance(2) = target_motion_with_offset.alt + set_hgt_offset - _navigator->get_global_position()->alt;
+//    _rotated_target_distance = _yaw_matrix * (_target_distance + _target_position_offset);
+//    _rotated_target_distance(2) = target_motion_with_offset.alt + set_hgt_offset - _navigator->get_global_position()->alt;
     //    PX4_INFO("sysID:%d,rtl_vehicles:%d",mavlink_system.sysid, total_rtl_vehicles);
     //is the current vehicle in the dock/refule cylinder
     docking_last_time = mavlink_system.sysid == 1 ? 60e6 : 30e6;   //first vehicle has 1 minutes, and others have 30 seconds
@@ -520,7 +525,7 @@ void FollowTarget::on_active()
 
             } else if (target_velocity_valid()) {
 #ifdef SET_OFFSET
-                set_follow_target_item(&_mission_item, set_hgt_offset, target_motion_with_offset, _yaw_angle);
+                set_follow_target_item(&_mission_item, set_hgt_offset + targ_hgt_offset, target_motion_with_offset, _yaw_angle);
 #else
                 set_follow_target_item(&_mission_item, _param_min_alt.get(), target_motion_with_offset, _yaw_angle);
 #endif
@@ -549,7 +554,7 @@ void FollowTarget::on_active()
                     _last_update_time = current_time;
                 }
 #ifdef SET_OFFSET
-                set_follow_target_item(&_mission_item, set_hgt_offset, target_motion_with_offset, _yaw_angle);
+                set_follow_target_item(&_mission_item, set_hgt_offset + targ_hgt_offset, target_motion_with_offset, _yaw_angle);
 #else
                 set_follow_target_item(&_mission_item, _param_min_alt.get(), target_motion_with_offset, _yaw_angle);
 #endif

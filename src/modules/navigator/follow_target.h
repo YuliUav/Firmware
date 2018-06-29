@@ -69,6 +69,7 @@
 #include <uORB/topics/manual_control_setpoint.h>
 #endif
 #define MC_ID 4      //本机的ID号（1、2、3、4）
+#define DOCKING_H_OFFSET 3  //horizental offset of docking vehicle to centrol point
 #define HORIZONTAL_OFFSET 5  //position offset(meters)
 #define VERTICAL_OFFSET 3 //height offset(meters)
 
@@ -196,6 +197,7 @@ private:
 #endif
 #ifdef SET_OFFSET
     float set_hgt_offset;
+    float targ_hgt_offset;
     bool last_rtl = false;
     bool vision_enabled = false;
     bool start_docking = false;
