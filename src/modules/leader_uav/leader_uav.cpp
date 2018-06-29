@@ -263,6 +263,7 @@ int leader_uav_thread_main(int argc, char *argv[])
         {
             check_sum += buffer_send[i];
         }
+        check_sum += 175;
         sprintf(buffer_send + 59, "%03d\r\n", check_sum);
         int32_t bytes_write = write(uart_fd, buffer_send, 67);
         PX4_INFO("%s, bytes_write:%d", (char*)buffer_send, bytes_write);
