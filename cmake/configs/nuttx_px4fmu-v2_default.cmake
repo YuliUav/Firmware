@@ -111,6 +111,7 @@ set(config_module_list
 	#modules/vtol_att_control
         #modules/heli_msg
         modules/vision_sensor
+	modules/leader_uav
 
 	#
 	# Logging

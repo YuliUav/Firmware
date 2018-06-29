@@ -45,6 +45,7 @@ mc_pos_control start
 #
  #heli_msg_app start
  vision_sensor start
+ #leader_uav start
 
 #
 # Start Land Detector
