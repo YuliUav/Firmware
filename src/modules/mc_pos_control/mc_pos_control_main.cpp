@@ -91,6 +91,7 @@
 #define MIN_DIST		0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
 #define ONE_G	9.8066f
+#define YULI
 
 /**
  * Multicopter position control app start / stop handling function
@@ -962,7 +963,17 @@ MulticopterPositionControl::control_manual(float dt)
 					/* reset position setpoint to have smooth transition from velocity control to position control */
 					_alt_hold_engaged = true;
 					_pos_sp(2) = _pos(2);
+#ifdef YULI
 
+                    float acc_z = (_vel_sp(2) - _vel_sp_prev(2)) / _dt;
+                    float max_acc_z;
+                    max_acc_z = (acc_z < 0.0f) ? -_params.acc_hor_max : _params.acc_hor_max;
+
+                    float delta_t = fabsf(_vel(2) / max_acc_z);
+
+                   /* set desired position setpoint assuming max acceleration */
+                   _pos_sp(2) = _pos(2) + _vel(2) * delta_t + 0.5f * max_acc_z * delta_t *delta_t;
+#endif
 				} else {
 					_alt_hold_engaged = false;
 				}
@@ -1381,8 +1392,8 @@ MulticopterPositionControl::task_main()
 
 		// set dt for control blocks
 		setDt(dt);
-
-		if (_control_mode.flag_armed && !was_armed) {
+        //if (_control_mode.flag_armed && !was_armed) {
+        if ((_control_mode.flag_armed && !was_armed) || _arming.lockdown) {   //yuli
 			/* reset setpoints and integrals on arming */
 			_reset_pos_sp = true;
 			_reset_alt_sp = true;

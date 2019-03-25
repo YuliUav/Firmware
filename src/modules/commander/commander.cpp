@@ -43,7 +43,7 @@
  * @author Anton Babushkin	<anton@px4.io>
  * @author Sander Smeets	<sander@droneslab.com>
  */
-
+#define YULI
 #include <cmath>	// NAN
 
 /* commander module headers */
@@ -117,6 +117,10 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vtol_vehicle_status.h>
+#ifdef YULI
+#include <uORB/topics/control_state.h>
+//#include <uORB/topics/vehicle_local_position.h>
+#endif
 
 typedef enum VEHICLE_MODE_FLAG
 {
@@ -225,6 +229,20 @@ static float avionics_power_rail_voltage;		// voltage of the avionics power rail
 
 static bool can_arm_without_gps = false;
 
+#ifdef YULI
+struct control_state_s acc_get = {};
+//struct vehicle_local_position_s local_position_falltest = {};
+hrt_abstime toss_time = 0;
+bool toss_start = false;
+hrt_abstime t_prev = 0;
+float vel_prev_z = 0.0f;
+float _vel_z_lowpass = 0.0f;
+float _acc_z_lowpass = 0.0f;
+hrt_abstime show_time = 0;
+int show_counter = 0;
+orb_advert_t	_mavlink_log_pub = nullptr;
+#endif
+
 
 /**
  * The daemon app only briefly exists to start
@@ -294,6 +312,9 @@ void *commander_low_prio_loop(void *arg);
 void answer_command(struct vehicle_command_s &cmd, unsigned result,
 					orb_advert_t &command_ack_pub, vehicle_command_ack_s &command_ack);
 
+#ifdef YULI
+void toss_state();
+#endif
 /**
  * check whether autostart ID is in the reserved range for HIL setups
  */
@@ -1249,6 +1270,87 @@ static void commander_set_home_position(orb_advert_t &homePub, home_position_s &
 	status_flags.condition_home_position_valid = true;
 }
 
+#ifdef YULI
+//void toss_state()
+//{
+//    bool a = false;
+//    float acc = sqrt(acc_get.z_acc * acc_get.z_acc + acc_get.x_acc * acc_get.x_acc + acc_get.y_acc * acc_get.y_acc);
+//    PX4_INFO("acc_get.acc_z: %.7f",  (double)acc);
+
+//    //    hrt_abstime toss_time = 0;
+//    if(acc < 4.0f)
+//    {
+//        a = true;
+
+//    }
+//    else
+//    {
+//        a = false;
+//    }
+//    if(!a)
+//    {
+//        toss_time = hrt_absolute_time();
+//    }
+//    if(hrt_elapsed_time(&toss_time) > (hrt_abstime)500000)
+//    {
+//        PX4_INFO("true");
+//        toss_start = true;
+
+//    }
+//    else
+//    {
+//      //  toss_start = false;
+//    }
+//}
+
+void toss_state()
+{
+    bool a = false;
+    float acc = _acc_z_lowpass;
+    float vel = _vel_z_lowpass;
+
+    show_time = hrt_absolute_time();
+
+    if(show_counter < 100)
+    {
+      show_counter++;
+    }
+    else
+    {
+        PX4_INFO("acc: %.7f , vel: %.7f",  (double)acc , (double)vel);
+        show_counter = 0;
+    }
+
+
+    //    hrt_abstime toss_time = 0;
+    if(acc > 4.0f && vel > 3.0f)
+    {
+        a = true;
+
+    }
+    else
+    {
+        a = false;
+    }
+    if(!a)
+    {
+        toss_time = hrt_absolute_time();
+    }
+    if(hrt_elapsed_time(&toss_time) > (hrt_abstime)300000)
+    {
+       // mavlink_log_info(&_mavlink_log_pub, "toss_start = true");
+        PX4_INFO("true");
+        toss_start = true;
+
+    }
+    else
+    {
+      //  toss_start = false;
+      //  mavlink_log_info(&_mavlink_log_pub, "toss_start = false");
+    }
+}
+
+#endif
 int commander_thread_main(int argc, char *argv[])
 {
 	/* not yet initialized */
@@ -1626,6 +1728,13 @@ int commander_thread_main(int argc, char *argv[])
 
 	control_status_leds(&status, &armed, true, &battery, &cpuload);
 
+#ifdef YULI
+    int control_state_sub = orb_subscribe(ORB_ID(control_state));
+    memset(&acc_get, 0, sizeof(acc_get));
+ //   int local_position_falltest_sub = orb_subscribe(ORB_ID(vehicle_local_position));
+ //   memset(&local_position_falltest, 0, sizeof(local_position_falltest));
+#endif
+
 	/* now initialized */
 	commander_initialized = true;
 	thread_running = true;
@@ -1720,11 +1829,16 @@ int commander_thread_main(int argc, char *argv[])
 	pthread_create(&commander_low_prio_thread, &commander_low_prio_attr, commander_low_prio_loop, NULL);
 	pthread_attr_destroy(&commander_low_prio_attr);
 
+    //armed.lockdown = true;
 	while (!thread_should_exit) {
 
 		arming_ret = TRANSITION_NOT_CHANGED;
 
-
+#ifdef YULI
+        hrt_abstime t = hrt_absolute_time();
+        float dt = t_prev != 0 ? (t - t_prev) * 0.000001f : 0.0f;
+        t_prev = t;
+#endif
 		/* update parameters */
 		orb_check(param_changed_sub, &updated);
 
@@ -1830,8 +1944,28 @@ int commander_thread_main(int argc, char *argv[])
 				need_param_autosave = true;
 			}
 		}
+#ifdef YULI
+        orb_check(control_state_sub, &updated);
 
-		orb_check(sp_man_sub, &updated);
+        if(updated)
+        {
+            orb_copy(ORB_ID(control_state), control_state_sub, &acc_get);
+          //  toss_state();
+         //   PX4_INFO("acc_get.acc_z: %.7f",  (double)sqrt(acc_get.z_acc * acc_get.z_acc + acc_get.x_acc * acc_get.x_acc + acc_get.y_acc * acc_get.y_acc));
+        }
+
+//        orb_check(local_position_falltest_sub, &updated);
+
+//        if(updated)
+//        {
+//            orb_copy(ORB_ID(vehicle_local_position), local_position_falltest_sub, &local_position_falltest);
+//        }
+
+#endif
+
+
+
+        orb_check(sp_man_sub, &updated);
 
 		if (updated) {
 			orb_copy(ORB_ID(manual_control_setpoint), sp_man_sub, &sp_man);
@@ -2094,6 +2228,14 @@ int commander_thread_main(int argc, char *argv[])
 		if (updated) {
 			/* position changed */
 			orb_copy(ORB_ID(vehicle_local_position), local_position_sub, &local_position);
+#ifdef YULI
+            _vel_z_lowpass = _vel_z_lowpass * (1.0f - dt * 8.0f) + dt * 8.0f * local_position.vz;
+            /* filter vel_z change over 1/8sec */
+            float vel_z_err = (local_position.vz - vel_prev_z )/ dt;
+            _acc_z_lowpass = _acc_z_lowpass * (1.0f - dt * 8.0f) + dt * 8.0f * vel_z_err;
+            vel_prev_z = local_position.vz;
+#endif
+
 		}
 
 		/* update attitude estimate */
@@ -2691,7 +2833,28 @@ int commander_thread_main(int argc, char *argv[])
 			}
 
 			/* check throttle kill switch */
-			if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+#ifdef YULI
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF)
+            {
+                toss_state();
+            }
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+                /* set lockdown flag */
+                if (!armed.lockdown) {
+                    mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH ENGAGED");
+                    toss_start = false;
+                }
+                armed.lockdown = true;
+            } else if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_OFF && toss_start) {
+                if (armed.lockdown) {
+                    mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH OFF");
+                }
+                armed.lockdown = false;
+            }
+            /* no else case: do not change lockdown flag in unconfigured case */
+
+#else
+            if (sp_man.kill_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 				/* set lockdown flag */
 				if (!armed.lockdown) {
 					mavlink_log_emergency(&mavlink_log_pub, "MANUAL KILL SWITCH ENGAGED");
@@ -2704,7 +2867,7 @@ int commander_thread_main(int argc, char *argv[])
 				armed.lockdown = false;
 			}
 			/* no else case: do not change lockdown flag in unconfigured case */
-
+#endif
 		} else {
 			if (!status_flags.rc_input_blocked && !status.rc_signal_lost) {
 				mavlink_log_critical(&mavlink_log_pub, "MANUAL CONTROL LOST (at t=%llums)", hrt_absolute_time() / 1000);

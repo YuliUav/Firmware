@@ -92,6 +92,7 @@ set(config_module_list
 	modules/gpio_led
 	modules/uavcan
 	modules/land_detector
+        
 
 	#
 	# Estimation modules
@@ -109,7 +110,7 @@ set(config_module_list
 	modules/mc_att_control
 	modules/mc_pos_control
 	modules/vtol_att_control
-
+        modules/mobile_platform_landing
 	#
 	# Logging
 	#
